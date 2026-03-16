@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTheme } from '../contexts/ThemeContext';
 import ReCAPTCHA from 'react-google-recaptcha';
 
 const Signup: React.FC = () => {
@@ -16,6 +17,7 @@ const Signup: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -94,10 +96,16 @@ const Signup: React.FC = () => {
       {/* Background Animation */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob"></div>
-        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-blue-900/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-tone-low/10 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000"></div>
         <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-primary/10 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-4000"></div>
         {/* Grid Pattern */}
-        <div className="fixed inset-0 z-0 pointer-events-none opacity-20" style={{backgroundImage: "radial-gradient(#3b4654 1px, transparent 1px)", backgroundSize: "32px 32px"}}></div>
+        <div
+          className="fixed inset-0 z-0 pointer-events-none opacity-20"
+          style={{
+            backgroundImage: "radial-gradient(rgb(var(--color-border)) 1px, transparent 1px)",
+            backgroundSize: "32px 32px"
+          }}
+        ></div>
       </div>
 
       <div className="w-full max-w-md z-10 flex flex-col gap-3 sm:gap-4 my-auto">
@@ -122,7 +130,7 @@ const Signup: React.FC = () => {
             {/* Full Name */}
             <div className="flex flex-col gap-1.5">
               <label className="text-white text-xs sm:text-sm font-medium leading-normal">Full Name</label>
-              <div className={`group flex w-full items-center rounded-xl border ${fullName ? 'border-green-500' : 'border-border'} bg-[#1c2127] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all`}>
+              <div className={`group flex w-full items-center rounded-xl border ${fullName ? 'border-green-500' : 'border-border'} bg-surface-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all`}>
                 <input 
                   className="flex-1 bg-transparent border-none text-white h-12 px-4 placeholder:text-secondary focus:ring-0 text-base" 
                   placeholder="Alex Chen" 
@@ -142,7 +150,7 @@ const Signup: React.FC = () => {
             {/* Work Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-white text-xs sm:text-sm font-medium leading-normal">Work Email</label>
-              <div className={`group flex w-full items-center rounded-xl border ${email && email.includes('@') ? 'border-green-500' : 'border-border'} bg-[#1c2127] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all`}>
+              <div className={`group flex w-full items-center rounded-xl border ${email && email.includes('@') ? 'border-green-500' : 'border-border'} bg-surface-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all`}>
                 <input 
                   className="flex-1 bg-transparent border-none text-white h-12 px-4 placeholder:text-secondary focus:ring-0 text-base" 
                   placeholder="alex.c@vmsbridge.io" 
@@ -162,7 +170,7 @@ const Signup: React.FC = () => {
             {/* Password */}
             <div className="flex flex-col gap-1.5">
               <label className="text-white text-xs sm:text-sm font-medium leading-normal">Password</label>
-              <div className="group flex w-full items-center rounded-xl border border-border bg-[#1c2127] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all">
+              <div className="group flex w-full items-center rounded-xl border border-border bg-surface-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all">
                 <input 
                   className="flex-1 bg-transparent border-none text-white h-12 px-4 placeholder:text-secondary focus:ring-0 text-base" 
                   placeholder="••••••••" 
@@ -203,7 +211,7 @@ const Signup: React.FC = () => {
             {/* Confirm Password */}
             <div className="flex flex-col gap-1.5">
               <label className="text-white text-xs sm:text-sm font-medium leading-normal">Confirm Password</label>
-              <div className={`group flex w-full items-center rounded-xl border ${confirmPassword && !passwordsMatch ? 'border-red-500' : 'border-border'} bg-[#1c2127] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all`}>
+              <div className={`group flex w-full items-center rounded-xl border ${confirmPassword && !passwordsMatch ? 'border-red-500' : 'border-border'} bg-surface-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all`}>
                 <input 
                   className="flex-1 bg-transparent border-none text-white h-12 px-4 placeholder:text-secondary focus:ring-0 text-base" 
                   placeholder="••••••••" 
@@ -238,7 +246,7 @@ const Signup: React.FC = () => {
                 id="terms"
                 checked={agreedToTerms}
                 onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-0.5 size-4 rounded border-border bg-[#1c2127] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+                className="mt-0.5 size-4 rounded border-border bg-surface-2 text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
                 required
               />
               <label htmlFor="terms" className="text-xs sm:text-sm text-secondary cursor-pointer leading-snug">
@@ -253,14 +261,14 @@ const Signup: React.FC = () => {
               <ReCAPTCHA
                 ref={recaptchaRef}
                 sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || 'your-site-key'}
-                theme="dark"
+                theme={theme}
               />
             </div>
 
             <button 
               type="submit"
               disabled={!passwordsMatch || !agreedToTerms || isLoading}
-              className="mt-1 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm sm:text-base font-bold text-white shadow-sm hover:bg-blue-600 transition-all active:scale-[0.98] group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
+              className="mt-1 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm sm:text-base font-bold text-on-primary shadow-sm hover:bg-blue-600 transition-all active:scale-[0.98] group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             >
               {isLoading ? 'Creating Account...' : 'Create Account'}
               <span className="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">arrow_forward</span>
@@ -284,3 +292,4 @@ const Signup: React.FC = () => {
 };
 
 export default Signup;
+

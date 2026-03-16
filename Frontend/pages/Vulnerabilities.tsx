@@ -2,13 +2,42 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient, Vulnerability, VulnerabilityListResponse } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { TableSkeleton } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
+
+// ── Filter Chip ──────────────────────────────────────────
+interface FilterChipProps {
+  label: string;
+  value: string;
+  colorClass?: string;
+  onRemove: () => void;
+}
+
+const FilterChip: React.FC<FilterChipProps> = ({ label, value, colorClass, onRemove }) => (
+  <span
+    className={`inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+      colorClass ?? 'bg-primary/15 text-primary border-primary/30'
+    }`}
+  >
+    <span className="text-current opacity-60">{label}:</span>
+    <span className="font-semibold capitalize">{value.replace(/_/g, ' ')}</span>
+    <button
+      onClick={onRemove}
+      className="ml-0.5 flex items-center justify-center w-4 h-4 rounded-full hover:bg-white/20 transition-colors"
+      aria-label={`Remove ${label} filter`}
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>close</span>
+    </button>
+  </span>
+);
 
 const Vulnerabilities: React.FC = () => {
     
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
+  const { push: pushNotification } = useNotifications();
   const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -56,21 +85,21 @@ const Vulnerabilities: React.FC = () => {
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-red-900/30 text-red-400 border-red-800';
-      case 'high': return 'bg-orange-900/30 text-orange-400 border-orange-800';
-      case 'medium': return 'bg-yellow-900/30 text-yellow-400 border-yellow-800';
-      case 'low': return 'bg-blue-900/30 text-blue-400 border-blue-800';
-      case 'info': return 'bg-gray-700/30 text-gray-400 border-gray-600';
+      case 'critical': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
+      case 'high': return 'bg-tone-high/10 text-tone-high border-tone-high/25';
+      case 'medium': return 'bg-tone-medium/10 text-tone-medium border-tone-medium/25';
+      case 'low': return 'bg-tone-low/10 text-tone-low border-tone-low/25';
+      case 'info': return 'bg-tone-info/10 text-tone-info border-tone-info/25';
       default: return 'bg-surface text-secondary border-border';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'bg-red-900/30 text-red-400 border-red-800';
-      case 'in_progress': return 'bg-yellow-900/30 text-yellow-400 border-yellow-800';
-      case 'resolved': return 'bg-emerald-900/30 text-emerald-400 border-emerald-800';
-      case 'false_positive': return 'bg-gray-700/30 text-gray-400 border-gray-600';
+      case 'open': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
+      case 'in_progress': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
+      case 'resolved': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
+      case 'false_positive': return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
       default: return 'bg-surface text-secondary border-border';
     }
   };
@@ -109,11 +138,12 @@ const Vulnerabilities: React.FC = () => {
               try {
                 await apiClient.createTicket({ vulnerability_ids: null }); // null means all vulnerabilities
                 showToast('Tickets created successfully!', 'success');
+                pushNotification('jira_ticket', 'Tickets created', 'Jira/support tickets have been created for all vulnerabilities.');
               } catch (error: any) {
                 showToast(error.message || 'Failed to create tickets', 'error');
               }
             }}
-            className="flex items-center gap-2 h-8 px-3 bg-primary hover:bg-blue-600 text-white text-sm font-medium rounded transition-colors"
+            className="flex items-center gap-2 h-8 px-3 bg-primary hover:bg-blue-600 text-on-primary text-sm font-medium rounded transition-colors"
             title="Create tickets for all vulnerabilities"
           >
             <span className="material-symbols-outlined text-sm">confirmation_number</span>
@@ -141,7 +171,7 @@ const Vulnerabilities: React.FC = () => {
                 onClick={() => setSeverityFilter('')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
                   severityFilter === '' 
-                    ? 'bg-primary text-white' 
+                    ? 'bg-primary text-on-primary' 
                     : 'bg-surface text-secondary hover:text-white hover:bg-border'
                 }`}
               >
@@ -151,8 +181,8 @@ const Vulnerabilities: React.FC = () => {
                 onClick={() => setSeverityFilter('critical')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
                   severityFilter === 'critical' 
-                    ? 'bg-red-900/30 text-red-400 border-red-800' 
-                    : 'bg-red-900/20 text-red-400 border-transparent hover:border-red-800'
+                    ? 'bg-tone-critical/20 text-tone-critical border-tone-critical/25' 
+                    : 'bg-tone-critical/10 text-tone-critical border-transparent hover:border-tone-critical/25'
                 }`}
               >
                 Critical ({severityCounts.critical})
@@ -161,8 +191,8 @@ const Vulnerabilities: React.FC = () => {
                 onClick={() => setSeverityFilter('high')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
                   severityFilter === 'high' 
-                    ? 'bg-orange-900/30 text-orange-400 border-orange-800' 
-                    : 'bg-orange-900/20 text-orange-400 border-transparent hover:border-orange-800'
+                    ? 'bg-tone-high/20 text-tone-high border-tone-high/25' 
+                    : 'bg-tone-high/10 text-tone-high border-transparent hover:border-tone-high/25'
                 }`}
               >
                 High ({severityCounts.high})
@@ -171,8 +201,8 @@ const Vulnerabilities: React.FC = () => {
                 onClick={() => setSeverityFilter('medium')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
                   severityFilter === 'medium' 
-                    ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' 
-                    : 'bg-yellow-900/20 text-yellow-400 border-transparent hover:border-yellow-800'
+                    ? 'bg-tone-medium/20 text-tone-medium border-tone-medium/25' 
+                    : 'bg-tone-medium/10 text-tone-medium border-transparent hover:border-tone-medium/25'
                 }`}
               >
                 Medium ({severityCounts.medium})
@@ -181,8 +211,8 @@ const Vulnerabilities: React.FC = () => {
                 onClick={() => setSeverityFilter('low')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
                   severityFilter === 'low' 
-                    ? 'bg-blue-900/30 text-blue-400 border-blue-800' 
-                    : 'bg-blue-900/20 text-blue-400 border-transparent hover:border-blue-800'
+                    ? 'bg-tone-low/20 text-tone-low border-tone-low/25' 
+                    : 'bg-tone-low/10 text-tone-low border-transparent hover:border-tone-low/25'
                 }`}
               >
                 Low ({severityCounts.low})
@@ -203,14 +233,93 @@ const Vulnerabilities: React.FC = () => {
             </div>
           </div>
 
+          {/* Active Filter Chips */}
+          {(severityFilter || statusFilter || searchTerm || scanIdFromUrl) && (
+            <div className="px-4 pb-3 flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-secondary font-medium mr-1">Active filters:</span>
+              {severityFilter && (
+                <FilterChip
+                  label="Severity"
+                  value={severityFilter}
+                  colorClass={
+                    severityFilter === 'critical' ? 'bg-tone-critical/10 text-tone-critical border-tone-critical/30' :
+                    severityFilter === 'high'     ? 'bg-tone-high/10 text-tone-high border-tone-high/30' :
+                    severityFilter === 'medium'   ? 'bg-tone-medium/10 text-tone-medium border-tone-medium/30' :
+                    severityFilter === 'low'      ? 'bg-tone-low/10 text-tone-low border-tone-low/30' :
+                    undefined
+                  }
+                  onRemove={() => setSeverityFilter('')}
+                />
+              )}
+              {statusFilter && (
+                <FilterChip
+                  label="Status"
+                  value={statusFilter}
+                  colorClass="bg-surface text-secondary border-border"
+                  onRemove={() => setStatusFilter('')}
+                />
+              )}
+              {searchTerm && (
+                <FilterChip
+                  label="Search"
+                  value={`"${searchTerm}"`}
+                  colorClass="bg-primary/10 text-primary border-primary/25"
+                  onRemove={() => setSearchTerm('')}
+                />
+              )}
+              {scanIdFromUrl && (
+                <FilterChip
+                  label="Scan"
+                  value="filtered by scan"
+                  colorClass="bg-primary/15 text-primary border-primary/30"
+                  onRemove={() => navigate('/vulnerabilities')}
+                />
+              )}
+              {/* Clear All */}
+              {[severityFilter, statusFilter, searchTerm].filter(Boolean).length > 1 && (
+                <button
+                  onClick={() => { setSeverityFilter(''); setStatusFilter(''); setSearchTerm(''); }}
+                  className="text-xs text-secondary hover:text-white underline underline-offset-2 transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex-1 overflow-auto px-4 pb-4 custom-scroll">
             {loading ? (
               <TableSkeleton rows={10} />
             ) : vulnerabilities.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-secondary">
-                <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
-                <p>No vulnerabilities found</p>
-              </div>
+              <EmptyState
+                variant={severityFilter || statusFilter || searchTerm || scanIdFromUrl ? 'no-filter-results' : 'no-vulnerabilities'}
+                actions={
+                  severityFilter || statusFilter || searchTerm
+                    ? [
+                        {
+                          label: 'Clear filters',
+                          icon: 'filter_alt_off',
+                          onClick: () => { setSeverityFilter(''); setStatusFilter(''); setSearchTerm(''); },
+                          variant: 'secondary',
+                        },
+                      ]
+                    : scanIdFromUrl
+                    ? [
+                        {
+                          label: 'View all vulnerabilities',
+                          icon: 'open_in_browser',
+                          onClick: () => navigate('/vulnerabilities'),
+                        },
+                      ]
+                    : [
+                        {
+                          label: 'Upload a scan',
+                          icon: 'cloud_upload',
+                          onClick: () => navigate('/scan-upload'),
+                        },
+                      ]
+                }
+              />
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead className="bg-surface/50 sticky top-0 z-10 backdrop-blur-sm">
@@ -272,6 +381,7 @@ const Vulnerabilities: React.FC = () => {
                             try {
                               await apiClient.createTicket({ vulnerability_ids: [vuln.id] });
                               showToast(`Ticket created for ${vuln.title}!`, 'success');
+                              pushNotification('jira_ticket', 'Ticket created', `A ticket has been created for "${vuln.title}".`);
                               // Refresh the list to update has_ticket
                               loadVulnerabilities();
                             } catch (error: any) {
@@ -423,3 +533,4 @@ const Vulnerabilities: React.FC = () => {
 };
 
 export default Vulnerabilities;
+

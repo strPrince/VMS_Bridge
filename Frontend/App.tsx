@@ -12,14 +12,16 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminPanel from './pages/AdminPanel';
 import SupportTickets from './pages/SupportTickets';
-import { AppLoadingSkeleton } from './components/SkeletonLoader';
+import { AppLoadingSkeleton, DashboardLoadingSkeleton } from './components/SkeletonLoader';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Protected Route wrapper component
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) {
-    return <AppLoadingSkeleton />;
+    return <DashboardLoadingSkeleton />;
   }
   
   return isAuthenticated ? children : <Navigate to="/login" replace />;
@@ -97,11 +99,15 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => {
   return (
     <Router>
-      <ToastProvider>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </ToastProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <NotificationProvider>
+            <AuthProvider>
+              <AppRoutes />
+            </AuthProvider>
+          </NotificationProvider>
+        </ToastProvider>
+      </ThemeProvider>
     </Router>
   );
 };

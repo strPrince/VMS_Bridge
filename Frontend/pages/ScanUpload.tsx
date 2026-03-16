@@ -2,10 +2,34 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient, Scan } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { TableSkeleton } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 
 const ALLOWED_EXTENSIONS = ['.json', '.xml', '.csv', '.txt', '.sarif', '.cyclonedx'];
 const MAX_FILE_SIZE_MB = 100;
+
+interface ScanSummary {
+  scanId: string;
+  filename: string;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
+}
+
+interface DeleteDialogState {
+  open: boolean;
+  scanId: string;
+  filename: string;
+}
+
+interface ActionMenuState {
+  open: boolean;
+  scanId: string;
+  anchorY: number;
+}
 
 const ScanUpload: React.FC = () => {
   const navigate = useNavigate();
@@ -17,9 +41,26 @@ const ScanUpload: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+  const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ open: false, scanId: '', filename: '' });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionMenu, setActionMenu] = useState<ActionMenuState>({ open: false, scanId: '', anchorY: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
   const { success, error } = useToast();
+  const { push: pushNotification } = useNotifications();
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Close action menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
+        setActionMenu(prev => ({ ...prev, open: false }));
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   useEffect(() => {
     loadScans(true); // Initial load with loading spinner
@@ -80,6 +121,7 @@ const ScanUpload: React.FC = () => {
     try {
       setUploading(true);
       setUploadProgress(0);
+      setScanSummary(null);
 
       const scan = await apiClient.uploadScan(file, (progress) => {
         setUploadProgress(Math.round(progress));
@@ -87,11 +129,41 @@ const ScanUpload: React.FC = () => {
 
       success(`File "${file.name}" uploaded successfully`);
       setUploadProgress(0);
-      
+
       // Reload scans list immediately
       await loadScans(false);
+
+      // Poll for completion then fetch vuln counts for summary card
+      const pollForSummary = async (attempts = 0) => {
+        if (attempts > 30) return; // give up after ~60s
+        try {
+          const resp = await apiClient.listVulnerabilities({ scan_id: scan.id, limit: 1 });
+          const allVulns = await apiClient.listVulnerabilities({ scan_id: scan.id, limit: 1000 });
+          if (allVulns.total > 0) {
+            const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+            allVulns.items.forEach((v: any) => {
+              const sev = v.scanner_severity as keyof typeof counts;
+              if (sev in counts) counts[sev]++;
+            });
+            setScanSummary({
+              scanId: scan.id,
+              filename: file.name,
+              ...counts,
+              total: allVulns.total,
+            });
+            pushNotification('scan_complete', `Scan complete: ${file.name}`, `${allVulns.total} vulnerabilities found (${counts.critical} critical, ${counts.high} high)`, `/vulnerabilities?scan_id=${scan.id}`);
+          } else {
+            setTimeout(() => pollForSummary(attempts + 1), 2000);
+          }
+        } catch {
+          setTimeout(() => pollForSummary(attempts + 1), 2000);
+        }
+      };
+      setTimeout(() => pollForSummary(), 3000);
+
     } catch (err: any) {
       error(err.message || 'Upload failed');
+      pushNotification('scan_failed', 'Upload failed', err.message || 'Upload failed');
       console.error('Upload error:', err);
     } finally {
       setUploading(false);
@@ -132,9 +204,14 @@ const ScanUpload: React.FC = () => {
     }
   };
 
-  const handleDelete = async (scanId: string, filename: string) => {
-    if (!confirm(`Delete scan "${filename}"?`)) return;
+  const openDeleteDialog = (scanId: string, filename: string) => {
+    setDeleteDialog({ open: true, scanId, filename });
+  };
 
+  const handleDelete = async () => {
+    const { scanId, filename } = deleteDialog;
+    setDeletingId(scanId);
+    setDeleteDialog({ open: false, scanId: '', filename: '' });
     try {
       await apiClient.deleteScan(scanId);
       success('Scan deleted successfully');
@@ -142,7 +219,15 @@ const ScanUpload: React.FC = () => {
     } catch (err: any) {
       error(err.message || 'Failed to delete scan');
       console.error('Delete error:', err);
+    } finally {
+      setDeletingId(null);
     }
+  };
+
+  const handleRescan = (scan: Scan) => {
+    setActionMenu(prev => ({ ...prev, open: false }));
+    success(`Re-scan queued for "${scan.filename}" — feature coming soon`);
+    pushNotification('info', 'Re-scan queued', `"${scan.filename}" will be re-processed once the backend endpoint is available.`);
   };
 
   const getStatusColor = (status: string) => {
@@ -205,7 +290,7 @@ const ScanUpload: React.FC = () => {
             <button 
               onClick={() => loadScans(true)}
               disabled={loading}
-              className="flex items-center justify-center gap-2 h-10 px-4 bg-[#283039] hover:bg-border text-white text-sm font-bold rounded-lg border border-border transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 h-10 px-4 bg-surface-3 hover:bg-border text-white text-sm font-bold rounded-lg border border-border transition-colors disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[20px]">refresh</span>
               <span>Refresh</span>
@@ -223,7 +308,7 @@ const ScanUpload: React.FC = () => {
               className={`group relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
                 dragActive
                   ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-primary/50 bg-surface/50 hover:bg-[#283039]/50'
+                  : 'border-border hover:border-primary/50 bg-surface/50 hover:bg-surface-3/50'
               } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -233,11 +318,11 @@ const ScanUpload: React.FC = () => {
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 {uploading ? (
                   <>
-                    <div className="p-4 rounded-full bg-[#283039] mb-4">
+                    <div className="p-4 rounded-full bg-surface-3 mb-4">
                       <span className="material-symbols-outlined text-4xl text-primary animate-pulse">upload</span>
                     </div>
                     <p className="mb-2 text-lg text-white font-medium">Uploading... {uploadProgress}%</p>
-                    <div className="w-64 h-2 bg-[#283039] rounded-full overflow-hidden">
+                    <div className="w-64 h-2 bg-surface-3 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary transition-all duration-300"
                         style={{ width: `${uploadProgress}%` }}
@@ -246,7 +331,7 @@ const ScanUpload: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <div className="p-4 rounded-full bg-[#283039] group-hover:bg-border mb-4 transition-colors">
+                    <div className="p-4 rounded-full bg-surface-3 group-hover:bg-border mb-4 transition-colors">
                       <span className="material-symbols-outlined text-4xl text-primary">cloud_upload</span>
                     </div>
                     <p className="mb-2 text-lg text-white font-medium">
@@ -255,7 +340,7 @@ const ScanUpload: React.FC = () => {
                     <p className="text-sm text-secondary">
                       Supported formats: {ALLOWED_EXTENSIONS.join(', ')}
                     </p>
-                    <p className="mt-2 text-xs text-[#586474] font-mono">
+                    <p className="mt-2 text-xs text-secondary/70 font-mono">
                       Max file size: {MAX_FILE_SIZE_MB}MB
                     </p>
                   </>
@@ -273,6 +358,48 @@ const ScanUpload: React.FC = () => {
             </label>
           </div>
 
+          {/* Scan Summary Card — shown after successful parse */}
+          {scanSummary && (
+            <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-green-500/30 bg-green-500/5 px-5 py-4 animate-fade-in">
+              <span className="material-symbols-outlined text-green-400 text-3xl shrink-0">check_circle</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm truncate mb-1">
+                  Scan parsed: <span className="text-secondary font-normal">{scanSummary.filename}</span>
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs font-bold">
+                  <span className="px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/25">
+                    {scanSummary.critical} Critical
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/25">
+                    {scanSummary.high} High
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/25">
+                    {scanSummary.medium} Medium
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-surface-3 text-secondary border border-border">
+                    {scanSummary.low} Low
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => navigate(`/vulnerabilities?scan_id=${scanSummary.scanId}`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-blue-600 text-on-primary text-xs font-bold rounded-lg transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                  View Vulnerabilities
+                </button>
+                <button
+                  onClick={() => setScanSummary(null)}
+                  className="p-1.5 rounded-lg hover:bg-border text-secondary hover:text-white transition-colors"
+                  title="Dismiss"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Recent Uploads Table */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
@@ -285,17 +412,22 @@ const ScanUpload: React.FC = () => {
                 <TableSkeleton rows={10} />
               </div>
             ) : scans.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-secondary">
-                <span className="material-symbols-outlined text-6xl mb-4">cloud_off</span>
-                <p className="text-lg">No scans uploaded yet</p>
-                <p className="text-sm">Upload your first scan file to get started</p>
-              </div>
+              <EmptyState
+                variant="no-scans"
+                actions={[
+                  {
+                    label: 'Upload your first scan',
+                    icon: 'cloud_upload',
+                    onClick: () => fileInputRef.current?.click(),
+                  },
+                ]}
+              />
             ) : (
               <div className="overflow-hidden rounded-xl border border-border bg-surface">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#283039] text-secondary text-xs font-semibold uppercase tracking-wider border-b border-border">
+                      <tr className="bg-surface-3 text-secondary text-xs font-semibold uppercase tracking-wider border-b border-border">
                         <th className="px-6 py-4">Filename</th>
                         <th className="px-6 py-4">Size</th>
                         <th className="px-6 py-4">Upload Date</th>
@@ -308,11 +440,11 @@ const ScanUpload: React.FC = () => {
                         <tr 
                           key={scan.id} 
                           onClick={() => navigate(`/vulnerabilities?scan_id=${scan.id}`)}
-                          className="group hover:bg-[#283039]/50 transition-colors cursor-pointer"
+                          className="group hover:bg-surface-3/50 transition-colors cursor-pointer"
                         >
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 rounded bg-[#283039] text-secondary">
+                              <div className="p-2 rounded bg-surface-3 text-secondary">
                                 <span className="material-symbols-outlined text-[20px]">description</span>
                               </div>
                               <div className="flex flex-col">
@@ -339,7 +471,7 @@ const ScanUpload: React.FC = () => {
                                 </span>
                                 {scan.job.status === 'running' && scan.job.progress !== null && (
                                   <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-1.5 bg-[#283039] rounded-full overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-surface-3 rounded-full overflow-hidden">
                                       <div
                                         className="h-full bg-cyan-500 transition-all duration-300"
                                         style={{ width: `${scan.job.progress}%` }}
@@ -356,26 +488,19 @@ const ScanUpload: React.FC = () => {
                               </span>
                             )}
                           </td>
-                           <td className="px-6 py-4 text-right">
-                            <button 
+                          <td className="px-6 py-4 text-right relative">
+                            <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/reports?scanId=${scan.id}`);
+                                setActionMenu({ open: true, scanId: scan.id, anchorY: e.currentTarget.getBoundingClientRect().bottom });
                               }}
-                              className="text-secondary hover:text-primary p-2 rounded hover:bg-border transition-colors mr-2"
-                              title="View Report"
+                              className={`text-secondary hover:text-white p-2 rounded hover:bg-border transition-colors ${deletingId === scan.id ? 'opacity-50 pointer-events-none' : ''}`}
+                              title="Actions"
                             >
-                              <span className="material-symbols-outlined text-[20px]">description</span>
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(scan.id, scan.filename);
-                              }}
-                              className="text-secondary hover:text-red-400 p-2 rounded hover:bg-border transition-colors"
-                              title="Delete"
-                            >
-                              <span className="material-symbols-outlined text-[20px]">delete</span>
+                              {deletingId === scan.id
+                                ? <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
+                                : <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                              }
                             </button>
                           </td>
                         </tr>
@@ -386,7 +511,7 @@ const ScanUpload: React.FC = () => {
                 
                 {/* Pagination Controls */}
                 {total > limit && (
-                  <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-[#283039]/30">
+                  <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-surface-3/30">
                     <div className="text-sm text-secondary">
                       Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total} scans
                     </div>
@@ -416,6 +541,87 @@ const ScanUpload: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Row Action Menu */}
+      {actionMenu.open && (
+        <div
+          ref={actionMenuRef}
+          className="fixed z-50 w-44 rounded-xl border border-border bg-surface shadow-2xl overflow-hidden"
+          style={{ top: Math.min(actionMenu.anchorY + 4, window.innerHeight - 160), right: 24 }}
+        >
+          {(() => {
+            const scan = scans.find(s => s.id === actionMenu.scanId);
+            if (!scan) return null;
+            return (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActionMenu(p => ({ ...p, open: false })); navigate(`/vulnerabilities?scan_id=${scan.id}`); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-white hover:bg-surface-3 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-secondary">bug_report</span>
+                  View Vulns
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActionMenu(p => ({ ...p, open: false })); navigate(`/reports?scanId=${scan.id}`); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-white hover:bg-surface-3 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-secondary">description</span>
+                  View Report
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRescan(scan); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-white hover:bg-surface-3 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-secondary">replay</span>
+                  Re-scan
+                </button>
+                <div className="h-px bg-border mx-2" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActionMenu(p => ({ ...p, open: false })); openDeleteDialog(scan.id, scan.filename); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">delete</span>
+                  Delete
+                </button>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 rounded-2xl border border-border bg-surface shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-border flex items-center gap-3">
+              <span className="material-symbols-outlined text-red-400 text-2xl">warning</span>
+              <h3 className="text-white font-bold text-base">Delete Scan</h3>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-secondary text-sm leading-relaxed">
+                Are you sure you want to delete{' '}
+                <span className="text-white font-medium">"{deleteDialog.filename}"</span>?
+                This will also remove all associated vulnerabilities. This action cannot be undone.
+              </p>
+            </div>
+            <div className="px-6 pb-5 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setDeleteDialog({ open: false, scanId: '', filename: '' })}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-secondary hover:text-white bg-surface-3 hover:bg-border transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-500 transition-colors flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">delete</span>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

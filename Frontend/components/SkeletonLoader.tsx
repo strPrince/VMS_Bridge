@@ -159,3 +159,101 @@ export const AppLoadingSkeleton: React.FC = () => (
     </div>
   </div>
 );
+
+// Dashboard-specific skeleton that mimics the actual dashboard layout
+export const DashboardLoadingSkeleton: React.FC = () => (
+  <div className="flex flex-col h-full overflow-hidden">
+    {/* Header skeleton */}
+    <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-6 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+        <div className="flex flex-col gap-1">
+          <div className="h-8 bg-border rounded w-64 animate-pulse"></div>
+          <div className="flex items-center gap-2 text-secondary text-sm">
+            <div className="h-4 w-4 bg-border rounded animate-pulse"></div>
+            <div className="h-4 bg-border rounded w-40 animate-pulse"></div>
+            <div className="h-4 w-1 bg-border rounded animate-pulse"></div>
+            <div className="h-4 bg-border rounded w-24 animate-pulse"></div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 bg-border rounded w-28 animate-pulse"></div>
+          <div className="h-10 bg-primary/30 rounded w-36 animate-pulse"></div>
+        </div>
+      </div>
+    </header>
+
+    {/* Content skeleton */}
+    <div className="flex-1 overflow-y-auto px-6 py-6 pb-20 custom-scroll">
+      <div className="flex flex-col gap-6 max-w-[1600px] mx-auto w-full">
+        
+        {/* Metrics skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <SkeletonLoader variant="metric" count={4} />
+        </div>
+
+        {/* Chart & Activity Feed skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Chart skeleton */}
+          <div className="lg:col-span-2 flex flex-col rounded-xl border border-border bg-surface p-6 h-[400px] animate-pulse">
+            <div className="flex justify-between items-start gap-4 mb-6">
+              <div className="h-6 bg-border rounded w-40 mb-2"></div>
+              <div className="flex items-center gap-2 text-secondary text-sm">
+                <div className="h-3 bg-border rounded w-24"></div>
+                <div className="h-5 bg-border rounded w-20"></div>
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-full h-full bg-border/20 rounded"></div>
+            </div>
+          </div>
+
+          {/* Activity Feed skeleton */}
+          <div className="flex flex-col rounded-xl border border-border bg-surface overflow-hidden h-[400px] animate-pulse">
+            <div className="p-5 border-b border-border flex justify-between items-center bg-gradient-to-r from-surface to-surface-3/30">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 bg-border rounded"></div>
+                <div className="h-6 bg-border rounded w-32"></div>
+                <div className="h-5 bg-border rounded w-10"></div>
+              </div>
+              <div className="flex items-center gap-1 text-primary text-sm font-medium">
+                <div className="h-4 bg-border rounded w-16"></div>
+                <div className="h-4 w-4 bg-border rounded"></div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <ListSkeleton items={5} />
+            </div>
+          </div>
+        </div>
+
+        {/* Table skeleton */}
+        <div className="flex flex-col gap-4">
+          <div className="h-8 bg-border rounded w-48 animate-pulse"></div>
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-surface-3 text-secondary text-xs font-semibold uppercase tracking-wider border-b border-border">
+                    <th className="px-6 py-4">Severity</th>
+                    <th className="px-6 py-4">Vulnerability Name</th>
+                    <th className="px-6 py-4">Asset</th>
+                    <th className="px-6 py-4">Discovery Time</th>
+                    <th className="px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  <tr>
+                    <td colSpan={5} className="p-0">
+                      <TableSkeleton rows={5} />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+);

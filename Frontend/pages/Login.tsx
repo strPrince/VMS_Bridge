@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTheme } from '../contexts/ThemeContext';
 import ReCAPTCHA from 'react-google-recaptcha';
 
 const Login: React.FC = () => {
@@ -11,6 +12,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const { theme } = useTheme();
 
   const { success, error: toastError } = useToast();
 
@@ -49,16 +51,22 @@ const Login: React.FC = () => {
         {/* Background Animation */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob"></div>
-            <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-blue-900/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000"></div>
+            <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-tone-low/10 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000"></div>
             <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-primary/10 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-4000"></div>
             {/* Grid Pattern */}
-            <div className="fixed inset-0 z-0 pointer-events-none opacity-20" style={{backgroundImage: "radial-gradient(#3b4654 1px, transparent 1px)", backgroundSize: "32px 32px"}}></div>
+            <div
+              className="fixed inset-0 z-0 pointer-events-none opacity-20"
+              style={{
+                backgroundImage: "radial-gradient(rgb(var(--color-border)) 1px, transparent 1px)",
+                backgroundSize: "32px 32px"
+              }}
+            ></div>
         </div>
 
         <div className="w-full max-w-md z-10 flex flex-col gap-4 sm:gap-5 md:gap-6 my-4 sm:my-8">
             <div className="text-center flex flex-col items-center gap-2 sm:gap-3 md:gap-4">
-                <div className="size-10 sm:size-12 bg-primary/20 rounded-xl flex items-center justify-center text-primary mb-1 sm:mb-2">
-                   <span className="material-symbols-outlined text-[28px] sm:text-[32px]">hub</span>
+                <div className="size-10 sm:size-12 bg-primary/10 rounded-xl flex items-center justify-center mb-1 sm:mb-2 overflow-hidden">
+                   <img src="/VMS_logo.png" alt="VMS Logo" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
                 </div>
                 <div className="space-y-1">
                     <h1 className="text-white tracking-tight text-2xl sm:text-[28px] font-bold leading-tight">Welcome Back</h1>
@@ -76,7 +84,7 @@ const Login: React.FC = () => {
                 <form className="flex flex-col gap-4 sm:gap-5" onSubmit={handleLogin}>
                     <div className="flex flex-col gap-2">
                         <label className="text-white text-sm font-medium leading-normal">Email</label>
-                        <div className="group flex w-full items-center rounded-xl border border-border bg-[#1c2127] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all">
+                        <div className="group flex w-full items-center rounded-xl border border-border bg-surface-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all">
                             <input 
                               className="flex-1 bg-transparent border-none text-white h-12 px-4 placeholder:text-secondary focus:ring-0 text-base" 
                               placeholder="name@company.com" 
@@ -90,7 +98,7 @@ const Login: React.FC = () => {
 
                     <div className="flex flex-col gap-2">
                         <label className="text-white text-sm font-medium leading-normal">Password</label>
-                        <div className="group flex w-full items-center rounded-xl border border-border bg-[#1c2127] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all">
+                        <div className="group flex w-full items-center rounded-xl border border-border bg-surface-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden transition-all">
                             <input 
                               className="flex-1 bg-transparent border-none text-white h-12 px-4 placeholder:text-secondary focus:ring-0 text-base" 
                               placeholder="••••••••" 
@@ -113,14 +121,14 @@ const Login: React.FC = () => {
                             ref={recaptchaRef}
                             // todo: Fix error 
                             sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || 'your-site-key'}
-                            theme="dark"
+                            theme={theme}
                         />
                     </div>
 
                     <button 
                         type="submit"
                         disabled={isLoading}
-                        className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-base font-bold text-white shadow-sm hover:bg-blue-600 transition-all active:scale-[0.98] group disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-base font-bold text-on-primary shadow-sm hover:bg-blue-600 transition-all active:scale-[0.98] group disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isLoading ? 'Signing In...' : 'Sign In'}
                         <span className="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">arrow_forward</span>
@@ -144,3 +152,4 @@ const Login: React.FC = () => {
 };
 
 export default Login;
+

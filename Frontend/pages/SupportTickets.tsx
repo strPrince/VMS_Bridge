@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { apiClient, SupportTicket, SupportTicketListResponse, TicketComment, CreateSupportTicketRequest, CreateTicketCommentRequest } from '../services/api';
 import { TableSkeleton } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 
 const SupportTickets: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { push: pushNotification } = useNotifications();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [ticketComments, setTicketComments] = useState<TicketComment[]>([]);
@@ -81,6 +84,7 @@ const SupportTickets: React.FC = () => {
       };
       await apiClient.createSupportTicket(request);
       showToast('Ticket created successfully', 'success');
+      pushNotification('jira_ticket', 'Support ticket created', `"${createForm.title}" has been submitted successfully.`);
       setCreateForm({ title: '', description: '', priority: 'medium', category: '' });
       setShowCreateForm(false);
       await loadTickets(pagination.skip, pagination.limit);
@@ -102,6 +106,7 @@ const SupportTickets: React.FC = () => {
       setNewComment('');
       await loadTicketComments(selectedTicket.id);
       showToast('Comment added successfully', 'success');
+      pushNotification('info', 'Comment added', `Reply posted on ticket "${selectedTicket.title}"`);
     } catch (error: any) {
       showToast(error.message, 'error');
     } finally {
@@ -111,9 +116,17 @@ const SupportTickets: React.FC = () => {
 
   // Update ticket status
   const handleUpdateTicketStatus = useCallback(async (ticketId: string, status: 'open' | 'in_progress' | 'resolved' | 'closed') => {
+    const statusLabel: Record<string, string> = {
+      open: 'Open',
+      in_progress: 'In Progress',
+      resolved: 'Resolved',
+      closed: 'Closed',
+    };
+    const ticketTitle = tickets.find(t => t.id === ticketId)?.title ?? selectedTicket?.title ?? 'Ticket';
     try {
       await apiClient.updateTicketStatus(ticketId, { status });
       showToast('Ticket status updated successfully', 'success');
+      pushNotification('info', 'Ticket status updated', `"${ticketTitle}" marked as ${statusLabel[status] ?? status}.`);
       await loadTickets(pagination.skip, pagination.limit);
       if (selectedTicket?.id === ticketId) {
         setSelectedTicket(prev => prev ? { ...prev, status: status as any } : null);
@@ -121,21 +134,21 @@ const SupportTickets: React.FC = () => {
     } catch (error: any) {
       showToast(error.message, 'error');
     }
-  }, [showToast, loadTickets, pagination, selectedTicket]);
+  }, [showToast, loadTickets, pagination, selectedTicket, tickets, pushNotification]);
 
   // Get status badge class
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'open':
-        return 'bg-red-500/10 text-red-500 border-red-500/20';
+        return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
       case 'in_progress':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+        return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
       case 'resolved':
-        return 'bg-green-500/10 text-green-500 border-green-500/20';
+        return 'bg-tone-success/10 text-tone-success border-tone-success/25';
       case 'closed':
-        return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+        return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
       default:
-        return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+        return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
     }
   };
 
@@ -143,15 +156,15 @@ const SupportTickets: React.FC = () => {
   const getPriorityBadgeClass = (priority: string) => {
     switch (priority) {
       case 'low':
-        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+        return 'bg-tone-low/10 text-tone-low border-tone-low/25';
       case 'medium':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+        return 'bg-tone-medium/10 text-tone-medium border-tone-medium/25';
       case 'high':
-        return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
+        return 'bg-tone-high/10 text-tone-high border-tone-high/25';
       case 'urgent':
-        return 'bg-red-500/10 text-red-500 border-red-500/20';
+        return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
       default:
-        return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+        return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
     }
   };
 
@@ -181,7 +194,7 @@ const SupportTickets: React.FC = () => {
           </div>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-on-primary text-sm font-medium rounded-lg transition-colors"
           >
             <span className="material-symbols-outlined text-sm">add</span>
             New Ticket
@@ -194,7 +207,7 @@ const SupportTickets: React.FC = () => {
         <div className="px-6 py-6 max-w-[1600px] mx-auto w-full">
           {/* Create Ticket Form */}
           {showCreateForm && (
-            <div className="bg-[#111418] border border-border rounded-lg p-6 mb-6">
+            <div className="bg-surface border border-border rounded-lg p-6 mb-6">
               <h3 className="text-white text-lg font-bold mb-4">Create New Ticket</h3>
               <form onSubmit={handleCreateTicket} className="space-y-4">
                 <div>
@@ -203,7 +216,7 @@ const SupportTickets: React.FC = () => {
                     type="text"
                     value={createForm.title}
                     onChange={(e) => setCreateForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full p-3 bg-[#283039] border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-3 bg-surface-3 border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Brief description of your issue"
                     required
                   />
@@ -213,7 +226,7 @@ const SupportTickets: React.FC = () => {
                   <textarea
                     value={createForm.description}
                     onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full p-3 bg-[#283039] border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical min-h-[120px]"
+                    className="w-full p-3 bg-surface-3 border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical min-h-[120px]"
                     placeholder="Detailed description of your issue"
                     required
                   />
@@ -224,7 +237,7 @@ const SupportTickets: React.FC = () => {
                     <select
                       value={createForm.priority}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, priority: e.target.value as any }))}
-                      className="w-full p-3 bg-[#283039] border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 bg-surface-3 border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
@@ -238,7 +251,7 @@ const SupportTickets: React.FC = () => {
                       type="text"
                       value={createForm.category}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full p-3 bg-[#283039] border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 bg-surface-3 border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="e.g., Bug, Feature, General"
                     />
                   </div>
@@ -247,14 +260,14 @@ const SupportTickets: React.FC = () => {
                   <button
                     type="submit"
                     disabled={loading.createTicket}
-                    className="flex-1 py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 py-2 px-4 bg-blue-500 hover:bg-blue-600 text-on-primary text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading.createTicket ? 'Creating...' : 'Create Ticket'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowCreateForm(false)}
-                    className="px-4 py-2 bg-[#283039] hover:bg-[#344050] text-white text-sm font-medium rounded-lg transition-colors"
+                    className="px-4 py-2 bg-surface-3 hover:bg-surface-4 text-white text-sm font-medium rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
@@ -267,7 +280,7 @@ const SupportTickets: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Tickets List */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-[#111418] border border-border rounded-lg">
+              <div className="bg-surface border border-border rounded-lg">
                 <div className="p-6 border-b border-border">
                   <h3 className="text-white text-lg font-bold">Your Tickets</h3>
                 </div>
@@ -281,7 +294,7 @@ const SupportTickets: React.FC = () => {
                           <div
                             key={ticket.id}
                             className={`p-4 border border-border rounded-lg cursor-pointer transition-colors ${
-                              selectedTicket?.id === ticket.id ? 'bg-[#283039] border-blue-500/50' : 'hover:bg-[#283039]'
+                              selectedTicket?.id === ticket.id ? 'bg-surface-3 border-blue-500/50' : 'hover:bg-surface-3'
                             }`}
                             onClick={() => handleTicketSelect(ticket)}
                           >
@@ -324,8 +337,8 @@ const SupportTickets: React.FC = () => {
                                 onClick={() => loadTickets(index * pagination.limit, pagination.limit)}
                                 className={`px-3 py-1 text-sm rounded-lg ${
                                   pagination.skip / pagination.limit === index
-                                    ? 'bg-[#283039] text-white'
-                                    : 'text-secondary hover:bg-[#283039] hover:text-white'
+                                    ? 'bg-surface-3 text-white'
+                                    : 'text-secondary hover:bg-surface-3 hover:text-white'
                                 }`}
                               >
                                 {index + 1}
@@ -336,17 +349,16 @@ const SupportTickets: React.FC = () => {
                       )}
                     </>
                   ) : (
-                    <div className="text-center py-8">
-                      <span className="material-symbols-outlined text-secondary text-6xl mb-4">support_agent</span>
-                      <h3 className="text-white text-lg font-medium mb-2">No tickets yet</h3>
-                      <p className="text-secondary text-sm mb-4">Create your first support ticket to get help</p>
-                      <button
-                        onClick={() => setShowCreateForm(true)}
-                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
-                      >
-                        Create Ticket
-                      </button>
-                    </div>
+                    <EmptyState
+                      variant="no-tickets"
+                      actions={[
+                        {
+                          label: 'Create a ticket',
+                          icon: 'add',
+                          onClick: () => setShowCreateForm(true),
+                        },
+                      ]}
+                    />
                   )}
                 </div>
               </div>
@@ -355,7 +367,7 @@ const SupportTickets: React.FC = () => {
             {/* Ticket Details */}
             <div className="space-y-6">
               {selectedTicket ? (
-                <div className="bg-[#111418] border border-border rounded-lg">
+                <div className="bg-surface border border-border rounded-lg">
                   <div className="p-6 border-b border-border">
                     <h3 className="text-white text-lg font-bold">Ticket Details</h3>
                   </div>
@@ -373,7 +385,7 @@ const SupportTickets: React.FC = () => {
                         <select
                           value={selectedTicket.status}
                           onChange={(e) => handleUpdateTicketStatus(selectedTicket.id, e.target.value)}
-                          className="px-3 py-1 text-xs rounded-lg bg-[#283039] text-white border border-border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="px-3 py-1 text-xs rounded-lg bg-surface-3 text-white border border-border focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="open">Open</option>
                           <option value="in_progress">In Progress</option>
@@ -423,13 +435,13 @@ const SupportTickets: React.FC = () => {
                       <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
                         {loading.comments ? (
                           <div className="space-y-3">
-                            <div className="h-4 bg-[#283039] rounded w-3/4 animate-pulse"></div>
-                            <div className="h-4 bg-[#283039] rounded w-1/2 animate-pulse"></div>
-                            <div className="h-4 bg-[#283039] rounded w-5/6 animate-pulse"></div>
+                            <div className="h-4 bg-surface-3 rounded w-3/4 animate-pulse"></div>
+                            <div className="h-4 bg-surface-3 rounded w-1/2 animate-pulse"></div>
+                            <div className="h-4 bg-surface-3 rounded w-5/6 animate-pulse"></div>
                           </div>
                         ) : ticketComments.length > 0 ? (
                           ticketComments.map(comment => (
-                            <div key={comment.id} className="bg-[#283039] rounded-lg p-3">
+                            <div key={comment.id} className="bg-surface-3 rounded-lg p-3">
                               <div className="flex justify-between items-start mb-1">
                                 <span className={`text-xs font-medium ${
                                   comment.is_admin ? 'text-purple-500' : 'text-blue-500'
@@ -454,13 +466,13 @@ const SupportTickets: React.FC = () => {
                           value={newComment}
                           onChange={(e) => setNewComment(e.target.value)}
                           placeholder="Add a comment..."
-                          className="w-full p-3 bg-[#283039] border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical min-h-[80px]"
+                          className="w-full p-3 bg-surface-3 border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical min-h-[80px]"
                           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleCreateComment())}
                         />
                         <button
                           onClick={handleCreateComment}
                           disabled={!newComment.trim() || loading.createComment}
-                          className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-on-primary text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {loading.createComment ? 'Adding...' : 'Add Comment'}
                         </button>
@@ -469,7 +481,7 @@ const SupportTickets: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="bg-[#111418] border border-border rounded-lg p-6">
+                <div className="bg-surface border border-border rounded-lg p-6">
                   <div className="text-center">
                     <span className="material-symbols-outlined text-secondary text-6xl mb-2">support_agent</span>
                     <p className="text-secondary text-sm">Select a ticket to view details</p>
@@ -485,3 +497,6 @@ const SupportTickets: React.FC = () => {
 };
 
 export default SupportTickets;
+
+
+

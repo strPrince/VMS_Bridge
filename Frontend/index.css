@@ -1,6 +1,58 @@
 @import "tailwindcss";
 @config "./tailwind.config.js";
 
+:root {
+  color-scheme: dark;
+  --color-background: 16 24 34;
+  --color-surface: 26 29 35;
+  --color-surface-2: 28 33 39;
+  --color-surface-3: 40 48 57;
+  --color-surface-4: 52 64 80;
+  --color-border: 59 70 84;
+  --color-secondary: 157 169 185;
+  --color-foreground: 255 255 255;
+  --color-primary: 17 105 212;
+  --color-on-primary: 255 255 255;
+  --color-success: 11 218 94;
+  --color-warning: 245 158 11;
+  --color-danger: 239 68 68;
+  --color-info: 59 130 246;
+  --tone-critical: 248 113 113;
+  --tone-high: 251 146 60;
+  --tone-medium: 251 191 36;
+  --tone-low: 96 165 250;
+  --tone-info: 156 163 175;
+  --tone-success: 52 211 153;
+  --tone-warning: 250 204 21;
+  --tone-neutral: 148 163 184;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  --color-background: 247 249 252;
+  --color-surface: 255 255 255;
+  --color-surface-2: 248 250 252;
+  --color-surface-3: 241 245 249;
+  --color-surface-4: 226 232 240;
+  --color-border: 226 232 240;
+  --color-secondary: 71 85 105;
+  --color-foreground: 15 23 42;
+  --color-primary: 17 105 212;
+  --color-on-primary: 255 255 255;
+  --color-success: 22 163 74;
+  --color-warning: 245 158 11;
+  --color-danger: 220 38 38;
+  --color-info: 37 99 235;
+  --tone-critical: 185 28 28;
+  --tone-high: 194 65 12;
+  --tone-medium: 161 98 7;
+  --tone-low: 29 78 216;
+  --tone-info: 71 85 105;
+  --tone-success: 21 128 61;
+  --tone-warning: 161 98 7;
+  --tone-neutral: 71 85 105;
+}
+
 @layer base {
   body {
     font-family: 'Inter', sans-serif;
@@ -16,16 +68,16 @@
   }
 
   .custom-scroll::-webkit-scrollbar-track {
-    background: #101822;
+    background: rgb(var(--color-background));
   }
 
   .custom-scroll::-webkit-scrollbar-thumb {
-    background: #3b4654;
+    background: rgb(var(--color-border));
     border-radius: 4px;
   }
 
   .custom-scroll::-webkit-scrollbar-thumb:hover {
-    background: #4b5563;
+    background: rgb(var(--color-surface-4));
   }
 
   /* Global scrollbar styles */
@@ -35,15 +87,15 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #101822;
+    background: rgb(var(--color-background));
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #3b4654;
+    background: rgb(var(--color-border));
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #4b5563;
+    background: rgb(var(--color-surface-4));
   }
 }

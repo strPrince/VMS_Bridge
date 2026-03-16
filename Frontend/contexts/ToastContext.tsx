@@ -52,15 +52,15 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           <div
             key={t.id}
             className={`pointer-events-auto w-80 max-w-sm rounded-lg shadow-lg overflow-hidden border border-border flex items-start gap-3 p-3 animate-slide-in transition-all
-              ${t.type === 'success' ? 'bg-green-600 text-white' : ''}
-              ${t.type === 'error' ? 'bg-red-600 text-white' : ''}
+              ${t.type === 'success' ? 'bg-green-600 text-on-primary' : ''}
+              ${t.type === 'error' ? 'bg-red-600 text-on-primary' : ''}
               ${t.type === 'info' ? 'bg-surface text-white' : ''}`}
           >
             <div className="flex-1 text-sm leading-tight">{t.message}</div>
             <div className="ml-2 flex items-start">
               <button
                 onClick={() => removeToast(t.id)}
-                className="text-white/80 hover:text-white"
+                className="text-current opacity-80 hover:opacity-100"
                 aria-label="Dismiss"
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>

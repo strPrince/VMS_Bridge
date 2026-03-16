@@ -151,6 +151,22 @@ class DashboardStatsResponse(BaseModel):
     info: int
 
 
+class TrendPointResponse(BaseModel):
+    """Single data point for the vulnerability trend chart."""
+    label: str           # e.g. "Mon" or "Jan 5"
+    date: str            # ISO date string YYYY-MM-DD
+    critical: int
+    high: int
+    medium: int
+    low: int
+    info: int
+
+
+class TrendResponse(BaseModel):
+    """Vulnerability trend over time."""
+    points: List[TrendPointResponse]
+
+
 # Ticket schemas
 class CreateTicketRequest(BaseModel):
     """Create ticket request."""

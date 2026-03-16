@@ -1,10 +1,27 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VMS Bridge - Vulnerability Management System Bridge</title>
     <link rel="icon" type="image/png" href="/VMS_logo.png" />
+    <script>
+      (function () {
+        try {
+          var storedTheme = localStorage.getItem('theme');
+          var theme = storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : 'dark';
+          var root = document.documentElement;
+          root.setAttribute('data-theme', theme);
+          if (theme === 'dark') {
+            root.classList.add('dark');
+          } else {
+            root.classList.remove('dark');
+          }
+        } catch (e) {
+          // Ignore theme initialization errors
+        }
+      })();
+    </script>
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
@@ -61,14 +78,14 @@
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #101822; 
+        background: rgb(var(--color-background)); 
       }
       ::-webkit-scrollbar-thumb {
-        background: #3b4654; 
+        background: rgb(var(--color-border)); 
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #4b5563; 
+        background: rgb(var(--color-surface-4)); 
       }
     </style>
   <!-- <script type="importmap">
@@ -84,7 +101,7 @@
 </script> -->
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-background text-white antialiased overflow-hidden">
+  <body class="bg-background text-foreground antialiased overflow-hidden">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

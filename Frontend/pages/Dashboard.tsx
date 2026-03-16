@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { apiClient, DashboardStats, Vulnerability, Scan } from '../services/api';
+import { apiClient, DashboardStats, Vulnerability, Scan, TrendPoint } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { MetricsSkeleton, ListSkeleton, TableSkeleton } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
+
+type DateRange = 7 | 30 | 90;
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +16,9 @@ const Dashboard: React.FC = () => {
   const [recentScans, setRecentScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [dateRange, setDateRange] = useState<DateRange>(7);
+  const [trendData, setTrendData] = useState<TrendPoint[]>([]);
+  const [trendLoading, setTrendLoading] = useState(true); // true until first fetch resolves
 
   // Memoized data loading function to prevent unnecessary API calls
   const loadDashboardData = useCallback(async () => {
@@ -37,10 +43,28 @@ const Dashboard: React.FC = () => {
     }
   }, []); // Empty dependency array - function never changes
 
+  const loadTrend = useCallback(async (days: DateRange) => {
+    try {
+      setTrendLoading(true);
+      const points = await apiClient.getTrend(days);
+      setTrendData(points);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to load trend data', 'error');
+      setTrendData([]);
+    } finally {
+      setTrendLoading(false);
+    }
+  }, [showToast]);
+
   // Load data once on mount
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
+
+  // Reload trend whenever the date range changes
+  useEffect(() => {
+    loadTrend(dateRange);
+  }, [dateRange, loadTrend]);
 
   // Memoize time formatting to avoid recalculating on every render
   const formatTimeAgo = useMemo(() => (dateString: string) => {
@@ -61,21 +85,31 @@ const Dashboard: React.FC = () => {
 
   const getSeverityColor = useCallback((severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-red-500/10 text-red-500 border-red-500/20';
-      case 'high': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
-      case 'medium': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-      case 'low': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+      case 'critical': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
+      case 'high': return 'bg-tone-high/10 text-tone-high border-tone-high/25';
+      case 'medium': return 'bg-tone-medium/10 text-tone-medium border-tone-medium/25';
+      case 'low': return 'bg-tone-low/10 text-tone-low border-tone-low/25';
+      default: return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
     }
   }, []);
 
   const getSeverityDot = useCallback((severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-red-500 animate-pulse';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-blue-500';
-      default: return 'bg-gray-500';
+      case 'critical': return 'bg-tone-critical animate-pulse';
+      case 'high': return 'bg-tone-high';
+      case 'medium': return 'bg-tone-medium';
+      case 'low': return 'bg-tone-low';
+      default: return 'bg-tone-neutral';
+    }
+  }, []);
+
+  const getStatusColor = useCallback((status: string) => {
+    switch (status) {
+      case 'open': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
+      case 'in_progress': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
+      case 'resolved': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
+      case 'false_positive': return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
+      default: return 'bg-surface text-secondary border-border';
     }
   }, []);
 
@@ -104,7 +138,7 @@ const Dashboard: React.FC = () => {
             </button>
             <button 
               onClick={() => navigate('/scans')}
-              className="flex items-center justify-center gap-2 h-10 px-4 bg-primary hover:bg-blue-600 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/20 transition-colors"
+              className="flex items-center justify-center gap-2 h-10 px-4 bg-primary hover:bg-blue-600 text-on-primary text-sm font-bold rounded-lg shadow-lg shadow-primary/20 transition-colors"
             >
               <span className="material-symbols-outlined text-[20px]">upload_file</span>
               <span>Upload Scan</span>
@@ -134,7 +168,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Metric 2 - Critical Vulns */}
-              <div className="flex flex-col gap-2 rounded-xl p-5 border border-red-900/30 bg-surface shadow-sm relative overflow-hidden">
+              <div className="flex flex-col gap-2 rounded-xl p-5 border border-tone-critical/25 bg-surface shadow-sm relative overflow-hidden">
                 <div className="absolute right-0 top-0 p-2 opacity-5">
                   <span className="material-symbols-outlined text-9xl text-danger">warning</span>
                 </div>
@@ -148,7 +182,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Metric 3 - High Vulns */}
-              <div className="flex flex-col gap-2 rounded-xl p-5 border border-orange-900/30 bg-surface shadow-sm">
+              <div className="flex flex-col gap-2 rounded-xl p-5 border border-tone-high/25 bg-surface shadow-sm">
                 <div className="flex justify-between items-start">
                   <p className="text-secondary text-sm font-medium uppercase tracking-wider">High</p>
                   <span className="material-symbols-outlined text-orange-400">priority_high</span>
@@ -159,7 +193,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Metric 4 - Medium Vulns */}
-              <div className="flex flex-col gap-2 rounded-xl p-5 border border-yellow-900/30 bg-surface shadow-sm">
+              <div className="flex flex-col gap-2 rounded-xl p-5 border border-tone-medium/25 bg-surface shadow-sm">
                 <div className="flex justify-between items-start">
                   <p className="text-secondary text-sm font-medium uppercase tracking-wider">Medium</p>
                   <span className="material-symbols-outlined text-yellow-400">error</span>
@@ -192,25 +226,87 @@ const Dashboard: React.FC = () => {
               <div className="flex justify-between items-start gap-4 mb-6">
                 <div>
                   <h3 className="text-white text-lg font-bold">Vulnerability Trends</h3>
-                  <p className="text-secondary text-sm mt-1">Coming Soon - ML-Powered Analytics</p>
+                  <div className="flex items-center gap-2 text-secondary text-sm mt-1">
+                    <span>Temporary demo trend</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface text-secondary border border-border">Demo</span>
+                  </div>
+                </div>
+                {/* Date range picker */}
+                <div className="flex items-center gap-1 bg-surface-3 rounded-lg p-1">
+                  {([7, 30, 90] as DateRange[]).map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setDateRange(d)}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                        dateRange === d
+                          ? 'bg-primary text-on-primary shadow'
+                          : 'text-secondary hover:text-white'
+                      }`}
+                    >
+                      {d}d
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-purple-900/20 text-purple-400 border border-purple-800 mb-4">
-                    <span className="material-symbols-outlined text-4xl">insights</span>
+              <div className="flex-1 flex items-center justify-center relative">
+                {trendLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-surface/60 backdrop-blur-sm rounded-lg z-10">
+                    <span className="material-symbols-outlined text-secondary text-3xl animate-spin" style={{ animationDuration: '1s' }}>autorenew</span>
                   </div>
-                  <h4 className="text-white text-lg font-semibold mb-2">AI-Powered Trend Analysis</h4>
-                  <p className="text-secondary text-sm max-w-md">
-                    Historical vulnerability trends, remediation patterns, and predictive insights will be available soon with our ML integration.
-                  </p>
+                )}
+                {!trendLoading && trendData.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 text-secondary text-sm">
+                    <span className="material-symbols-outlined text-4xl opacity-40">show_chart</span>
+                    <p className="text-xs">No vulnerability data for this period</p>
+                    <button
+                      onClick={() => navigate('/scan-upload')}
+                      className="mt-1 text-xs text-primary hover:underline"
+                    >
+                      Upload a scan to populate the chart
+                    </button>
+                  </div>
+                ) : (
+                <div className="w-full h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorCritical" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorHigh" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorMedium" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#eab308" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#eab308" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="label" stroke="rgb(var(--color-secondary))" tick={{ fontSize: 12, fill: 'rgb(var(--color-secondary))' }} />
+                      <YAxis stroke="rgb(var(--color-secondary))" tick={{ fontSize: 12, fill: 'rgb(var(--color-secondary))' }} />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'rgb(var(--color-surface-2))',
+                          border: '1px solid rgb(var(--color-border))',
+                          borderRadius: 8
+                        }}
+                        labelStyle={{ color: 'rgb(var(--color-foreground))' }}
+                        itemStyle={{ color: 'rgb(var(--color-foreground))' }}
+                      />
+                      <Area type="monotone" dataKey="critical" stroke="#ef4444" fillOpacity={1} fill="url(#colorCritical)" />
+                      <Area type="monotone" dataKey="high" stroke="#f97316" fillOpacity={1} fill="url(#colorHigh)" />
+                      <Area type="monotone" dataKey="medium" stroke="#eab308" fillOpacity={1} fill="url(#colorMedium)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
+                )}
               </div>
             </div>
 
             {/* Activity Feed - Recent Scans */}
             <div className="flex flex-col rounded-xl border border-border bg-surface overflow-hidden h-[400px] shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <div className="p-5 border-b border-border flex justify-between items-center bg-gradient-to-r from-surface to-[#283039]/30">
+              <div className="p-5 border-b border-border flex justify-between items-center bg-gradient-to-r from-surface to-surface-3/30">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-lg">scan</span>
                   <h3 className="text-white text-lg font-bold">Recent Scans</h3>
@@ -230,33 +326,29 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="flex-1 overflow-y-auto" style={{ 
                 scrollbarWidth: 'thin',
-                scrollbarColor: '#1169d4 #1a1d23'
+                scrollbarColor: 'rgb(var(--color-primary)) rgb(var(--color-surface))'
               }}>
                 {loading ? (
                   <ListSkeleton items={5} />
                 ) : recentScans.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-secondary text-sm gap-3 p-6">
-                    <div className="w-16 h-16 rounded-full bg-surface border border-border flex items-center justify-center">
-                      <span className="material-symbols-outlined text-4xl opacity-50">cloud_off</span>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-medium text-white mb-1">No scans yet</p>
-                      <p className="text-xs">Upload your first scan to get started</p>
-                    </div>
-                    <button
-                      onClick={() => navigate('/scan-upload')}
-                      className="mt-2 px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
-                    >
-                      Upload Scan
-                    </button>
-                  </div>
+                  <EmptyState
+                    variant="no-scans"
+                    compact
+                    actions={[
+                      {
+                        label: 'Upload Scan',
+                        icon: 'cloud_upload',
+                        onClick: () => navigate('/scan-upload'),
+                      },
+                    ]}
+                  />
                 ) : (
                   <div className="divide-y divide-border/30">
                     {recentScans.map((scan, index) => (
                       <div 
                         key={scan.id}
                         onClick={() => navigate(`/vulnerabilities?scan_id=${scan.id}`)}
-                        className="relative flex gap-4 p-4 hover:bg-gradient-to-r hover:from-[#283039]/30 hover:to-transparent transition-all duration-150 group cursor-pointer"
+                        className="relative flex gap-4 p-4 hover:bg-gradient-to-r hover:from-surface-3/30 hover:to-transparent transition-all duration-150 group cursor-pointer"
                         style={{ 
                           animation: `slideIn 0.3s ease-out ${index * 0.1}s backwards`
                         }}
@@ -337,7 +429,7 @@ const Dashboard: React.FC = () => {
                           </div>
                           
                           {/* Timestamp */}
-                          <div className="flex items-center gap-1.5 text-[#586474] text-[11px] font-mono">
+                          <div className="flex items-center gap-1.5 text-secondary/70 text-[11px] font-mono">
                             <span className="material-symbols-outlined text-xs">schedule</span>
                             <span>{formatTimeAgo(scan.uploaded_at)}</span>
                           </div>
@@ -345,7 +437,7 @@ const Dashboard: React.FC = () => {
                           {/* Progress bar for running scans */}
                           {scan.status === 'running' && scan.job?.progress !== undefined && (
                             <div className="mt-1 flex items-center gap-2">
-                              <div className="flex-1 h-1 bg-[#283039] rounded-full overflow-hidden">
+                              <div className="flex-1 h-1 bg-surface-3 rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-gradient-to-r from-primary to-blue-400 transition-all duration-300 rounded-full"
                                   style={{ width: `${scan.job.progress}%` }}
@@ -377,12 +469,12 @@ const Dashboard: React.FC = () => {
                 <div className="overflow-x-auto">
                    <table className="w-full text-left border-collapse">
                       <thead>
-                         <tr className="bg-[#283039] text-secondary text-xs font-semibold uppercase tracking-wider border-b border-border">
+                         <tr className="bg-surface-3 text-secondary text-xs font-semibold uppercase tracking-wider border-b border-border">
                             <th className="px-6 py-4">Severity</th>
                             <th className="px-6 py-4">Vulnerability Name</th>
                             <th className="px-6 py-4">Asset</th>
                             <th className="px-6 py-4">Discovery Time</th>
-                            <th className="px-6 py-4">AI Score</th>
+                            <th className="px-6 py-4">Status</th>
                          </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
@@ -394,11 +486,21 @@ const Dashboard: React.FC = () => {
                             </tr>
                          ) : recentVulns.length === 0 ? (
                             <tr>
-                               <td colSpan={5} className="px-6 py-12 text-center">
-                                  <div className="flex flex-col items-center gap-2 text-secondary">
-                                     <span className="material-symbols-outlined text-4xl opacity-50">security</span>
-                                     <span>No vulnerabilities found - Great job!</span>
-                                  </div>
+                               <td colSpan={5} className="p-0">
+                                  <EmptyState
+                                    variant="no-vulnerabilities"
+                                    compact
+                                    title="No vulnerabilities found"
+                                    description="Great job! Your scans haven't turned up any issues."
+                                    actions={[
+                                      {
+                                        label: 'View all scans',
+                                        icon: 'manage_search',
+                                        onClick: () => navigate('/scan-upload'),
+                                        variant: 'secondary',
+                                      },
+                                    ]}
+                                  />
                                </td>
                             </tr>
                          ) : (
@@ -406,7 +508,7 @@ const Dashboard: React.FC = () => {
                                <tr 
                                   key={vuln.id} 
                                   onClick={() => navigate(`/reports?id=${vuln.id}`)}
-                                  className="group hover:bg-[#283039]/50 transition-colors cursor-pointer"
+                                  className="group hover:bg-surface-3/50 transition-colors cursor-pointer"
                                >
                                   <td className="px-6 py-4 whitespace-nowrap">
                                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border uppercase ${getSeverityColor(vuln.scanner_severity)}`}>
@@ -418,7 +520,7 @@ const Dashboard: React.FC = () => {
                                      <div className="flex flex-col">
                                         <span className="text-white font-medium text-sm">{vuln.title}</span>
                                         {vuln.cve_id && (
-                                           <span className="text-[#586474] text-xs font-mono">{vuln.cve_id}</span>
+                                           <span className="text-secondary/70 text-xs font-mono">{vuln.cve_id}</span>
                                         )}
                                      </div>
                                   </td>
@@ -429,11 +531,9 @@ const Dashboard: React.FC = () => {
                                      {formatTimeAgo(vuln.discovered_at)}
                                   </td>
                                   <td className="px-6 py-4">
-                                     <div className="flex items-center gap-2">
-                                        <div className="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-900/20 text-purple-400 border border-purple-800">
-                                           Coming Soon
-                                        </div>
-                                     </div>
+                                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium uppercase border ${getStatusColor(vuln.status)}`}>
+                                        {vuln.status.replace('_', ' ')}
+                                     </span>
                                   </td>
                                </tr>
                             ))
@@ -467,17 +567,17 @@ const Dashboard: React.FC = () => {
         }
         
         *::-webkit-scrollbar-track {
-          background: #1a1d23;
+          background: rgb(var(--color-surface));
           border-radius: 3px;
         }
         
         *::-webkit-scrollbar-thumb {
-          background: #1169d4;
+          background: rgb(var(--color-primary));
           border-radius: 3px;
         }
         
         *::-webkit-scrollbar-thumb:hover {
-          background: #0d5cb8;
+          background: rgb(var(--color-primary));
         }
       `}</style>
     </div>
@@ -485,3 +585,5 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+
+

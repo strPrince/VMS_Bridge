@@ -1,9 +1,18 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 
+# Configure root logger so application-level WARNING+ messages appear in the
+# uvicorn console even when uvicorn manages its own log handlers.
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(asctime)s  %(levelname)-8s  %(name)s  —  %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 settings = get_settings()
 

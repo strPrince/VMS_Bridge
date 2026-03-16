@@ -169,6 +169,20 @@ export interface DashboardStats {
   info: number;
 }
 
+export interface TrendPoint {
+  label: string;
+  date: string;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+}
+
+export interface TrendResponse {
+  points: TrendPoint[];
+}
+
 export interface AuthResponse {
   user: User;
   access_token: string;
@@ -541,6 +555,18 @@ class ApiClient {
 
   async getDashboardStats(): Promise<DashboardStats> {
     return this.request<DashboardStats>('/vulnerabilities/dashboard/stats');
+  }
+
+  async getTrend(days: 7 | 30 | 90): Promise<TrendPoint[]> {
+    console.log(`[TREND] Requesting days=${days}`);
+    const data = await this.request<TrendResponse>(`/vulnerabilities/dashboard/trend?days=${days}`);
+    console.log(`[TREND] Raw response days=${days}:`, JSON.stringify(data));
+    const nonZero = data.points.filter(p => p.critical || p.high || p.medium || p.low || p.info);
+    console.log(`[TREND] Non-zero points (${nonZero.length}/${data.points.length}):`, nonZero);
+    if (nonZero.length === 0) {
+      console.warn('[TREND] All points are zero — check backend logs for [TREND] lines')
+    }
+    return data.points;
   }
 
   // Ticket endpoints

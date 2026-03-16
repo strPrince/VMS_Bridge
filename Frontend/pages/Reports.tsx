@@ -44,6 +44,7 @@ const Reports: React.FC = () => {
   const [vulnerability, setVulnerability] = useState<Vulnerability | null>(null);
   const [scanReport, setScanReport] = useState<ScanReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creatingTicket, setCreatingTicket] = useState(false);
 
   useEffect(() => {
     if (scanId) {
@@ -83,23 +84,38 @@ const Reports: React.FC = () => {
     }
   };
 
+  const handleCreateTicket = async () => {
+    if (!vulnerability || vulnerability.has_ticket || creatingTicket) return;
+
+    try {
+      setCreatingTicket(true);
+      await apiClient.createTicket({ vulnerability_ids: [vulnerability.id] });
+      showToast('Jira ticket created successfully', 'success');
+      setVulnerability({ ...vulnerability, has_ticket: true });
+    } catch (error: any) {
+      showToast(error.message || 'Failed to create Jira ticket', 'error');
+    } finally {
+      setCreatingTicket(false);
+    }
+  };
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-red-900/30 text-red-400 border-red-800';
-      case 'high': return 'bg-orange-900/30 text-orange-400 border-orange-800';
-      case 'medium': return 'bg-yellow-900/30 text-yellow-400 border-yellow-800';
-      case 'low': return 'bg-blue-900/30 text-blue-400 border-blue-800';
-      case 'info': return 'bg-gray-700/30 text-gray-400 border-gray-600';
+      case 'critical': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
+      case 'high': return 'bg-tone-high/10 text-tone-high border-tone-high/25';
+      case 'medium': return 'bg-tone-medium/10 text-tone-medium border-tone-medium/25';
+      case 'low': return 'bg-tone-low/10 text-tone-low border-tone-low/25';
+      case 'info': return 'bg-tone-info/10 text-tone-info border-tone-info/25';
       default: return 'bg-surface text-secondary border-border';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'bg-red-900/30 text-red-400 border-red-800';
-      case 'in_progress': return 'bg-yellow-900/30 text-yellow-400 border-yellow-800';
-      case 'resolved': return 'bg-emerald-900/30 text-emerald-400 border-emerald-800';
-      case 'false_positive': return 'bg-gray-700/30 text-gray-400 border-gray-600';
+      case 'open': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
+      case 'in_progress': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
+      case 'resolved': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
+      case 'false_positive': return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
       default: return 'bg-surface text-secondary border-border';
     }
   };
@@ -126,7 +142,7 @@ const Reports: React.FC = () => {
               <span className="material-symbols-outlined text-[20px]">print</span>
               Print
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-primary rounded hover:bg-blue-600 transition-colors text-white text-sm font-medium shadow-lg shadow-primary/20">
+            <button className="flex items-center gap-2 px-4 py-2 bg-primary rounded hover:bg-blue-600 transition-colors text-on-primary text-sm font-medium shadow-lg shadow-primary/20">
               <span className="material-symbols-outlined text-[20px]">download</span>
               Download PDF
             </button>
@@ -159,9 +175,9 @@ const Reports: React.FC = () => {
                 <div>
                   <p className="text-xs text-secondary uppercase tracking-wider mb-1">Status</p>
                   <span className={`px-3 py-1.5 rounded text-sm font-medium uppercase border ${
-                    scanReport.scan.status === 'completed' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800' :
-                    scanReport.scan.status === 'running' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' :
-                    'bg-gray-700/30 text-gray-400 border-gray-600'
+                    scanReport.scan.status === 'completed' ? 'bg-tone-success/10 text-tone-success border-tone-success/25' :
+                    scanReport.scan.status === 'running' ? 'bg-tone-warning/10 text-tone-warning border-tone-warning/25' :
+                    'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25'
                   }`}>
                     {scanReport.scan.status}
                   </span>
@@ -179,11 +195,11 @@ const Reports: React.FC = () => {
                 {Object.entries(scanReport.statistics.severity_counts).map(([severity, count]) => (
                   <div key={severity} className="bg-background rounded-lg p-4 border border-border">
                     <p className={`text-xs font-medium uppercase mb-2 ${
-                      severity === 'critical' ? 'text-red-400' :
-                      severity === 'high' ? 'text-orange-400' :
-                      severity === 'medium' ? 'text-yellow-400' :
-                      severity === 'low' ? 'text-blue-400' :
-                      'text-gray-400'
+                      severity === 'critical' ? 'text-tone-critical' :
+                      severity === 'high' ? 'text-tone-high' :
+                      severity === 'medium' ? 'text-tone-medium' :
+                      severity === 'low' ? 'text-tone-low' :
+                      'text-tone-info'
                     }`}>
                       {severity}
                     </p>
@@ -191,11 +207,11 @@ const Reports: React.FC = () => {
                     <div className="mt-2 bg-border rounded-full h-2 overflow-hidden">
                       <div 
                         className={`h-full transition-all ${
-                          severity === 'critical' ? 'bg-red-500' :
-                          severity === 'high' ? 'bg-orange-500' :
-                          severity === 'medium' ? 'bg-yellow-500' :
-                          severity === 'low' ? 'bg-blue-500' :
-                          'bg-gray-500'
+                          severity === 'critical' ? 'bg-tone-critical' :
+                          severity === 'high' ? 'bg-tone-high' :
+                          severity === 'medium' ? 'bg-tone-medium' :
+                          severity === 'low' ? 'bg-tone-low' :
+                          'bg-tone-info'
                         }`}
                         style={{ width: `${(Number(count) / Number(scanReport.statistics.total_vulnerabilities)) * 100}%` }}
                       />
@@ -240,11 +256,11 @@ const Reports: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`px-2 py-1 rounded text-xs font-medium uppercase border ${
-                            vuln.severity === 'critical' ? 'bg-red-900/30 text-red-400 border-red-800' :
-                            vuln.severity === 'high' ? 'bg-orange-900/30 text-orange-400 border-orange-800' :
-                            vuln.severity === 'medium' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' :
-                            vuln.severity === 'low' ? 'bg-blue-900/30 text-blue-400 border-blue-800' :
-                            'bg-gray-700/30 text-gray-400 border-gray-600'
+                            vuln.severity === 'critical' ? 'bg-tone-critical/10 text-tone-critical border-tone-critical/25' :
+                            vuln.severity === 'high' ? 'bg-tone-high/10 text-tone-high border-tone-high/25' :
+                            vuln.severity === 'medium' ? 'bg-tone-medium/10 text-tone-medium border-tone-medium/25' :
+                            vuln.severity === 'low' ? 'bg-tone-low/10 text-tone-low border-tone-low/25' :
+                            'bg-tone-info/10 text-tone-info border-tone-info/25'
                           }`}>
                             {vuln.severity}
                           </span>
@@ -270,7 +286,7 @@ const Reports: React.FC = () => {
                       </div>
                       <button 
                         onClick={() => navigate(`/reports?id=${vuln.id}`)}
-                        className="ml-4 px-3 py-1.5 bg-primary rounded hover:bg-blue-600 transition-colors text-white text-sm font-medium"
+                        className="ml-4 px-3 py-1.5 bg-primary rounded hover:bg-blue-600 transition-colors text-on-primary text-sm font-medium"
                       >
                         View Details
                       </button>
@@ -307,11 +323,11 @@ const Reports: React.FC = () => {
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded text-xs font-medium uppercase border ${
-                            vuln.severity === 'critical' ? 'bg-red-900/30 text-red-400 border-red-800' :
-                            vuln.severity === 'high' ? 'bg-orange-900/30 text-orange-400 border-orange-800' :
-                            vuln.severity === 'medium' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' :
-                            vuln.severity === 'low' ? 'bg-blue-900/30 text-blue-400 border-blue-800' :
-                            'bg-gray-700/30 text-gray-400 border-gray-600'
+                            vuln.severity === 'critical' ? 'bg-tone-critical/10 text-tone-critical border-tone-critical/25' :
+                            vuln.severity === 'high' ? 'bg-tone-high/10 text-tone-high border-tone-high/25' :
+                            vuln.severity === 'medium' ? 'bg-tone-medium/10 text-tone-medium border-tone-medium/25' :
+                            vuln.severity === 'low' ? 'bg-tone-low/10 text-tone-low border-tone-low/25' :
+                            'bg-tone-info/10 text-tone-info border-tone-info/25'
                           }`}>
                             {vuln.severity}
                           </span>
@@ -338,10 +354,10 @@ const Reports: React.FC = () => {
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded text-xs font-medium capitalize border ${
-                            vuln.status === 'open' ? 'bg-red-900/30 text-red-400 border-red-800' :
-                            vuln.status === 'in_progress' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' :
-                            vuln.status === 'resolved' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800' :
-                            'bg-gray-700/30 text-gray-400 border-gray-600'
+                            vuln.status === 'open' ? 'bg-tone-critical/10 text-tone-critical border-tone-critical/25' :
+                            vuln.status === 'in_progress' ? 'bg-tone-warning/10 text-tone-warning border-tone-warning/25' :
+                            vuln.status === 'resolved' ? 'bg-tone-success/10 text-tone-success border-tone-success/25' :
+                            'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25'
                           }`}>
                             {vuln.status.replace('_', ' ')}
                           </span>
@@ -349,7 +365,7 @@ const Reports: React.FC = () => {
                         <td className="py-3 px-4">
                           <button 
                             onClick={() => navigate(`/reports?id=${vuln.id}`)}
-                            className="px-3 py-1.5 bg-primary rounded hover:bg-blue-600 transition-colors text-white text-xs font-medium"
+                            className="px-3 py-1.5 bg-primary rounded hover:bg-blue-600 transition-colors text-on-primary text-xs font-medium"
                           >
                             View
                           </button>
@@ -374,7 +390,7 @@ const Reports: React.FC = () => {
         <p className="mt-2">Please select a vulnerability from the Vulnerabilities page to view its report.</p>
         <button 
           onClick={() => navigate('/vulnerabilities')}
-          className="mt-6 px-4 py-2 bg-primary text-white rounded hover:bg-blue-600 transition-colors"
+          className="mt-6 px-4 py-2 bg-primary text-on-primary rounded hover:bg-blue-600 transition-colors"
         >
           Go to Vulnerabilities
         </button>
@@ -404,7 +420,7 @@ const Reports: React.FC = () => {
         <h2 className="text-xl font-medium text-white">Vulnerability Not Found</h2>
         <button 
           onClick={() => navigate('/vulnerabilities')}
-          className="mt-6 px-4 py-2 bg-primary text-white rounded hover:bg-blue-600 transition-colors"
+          className="mt-6 px-4 py-2 bg-primary text-on-primary rounded hover:bg-blue-600 transition-colors"
         >
           Go to Vulnerabilities
         </button>
@@ -432,7 +448,7 @@ const Reports: React.FC = () => {
             <span className="material-symbols-outlined text-[20px]">print</span>
             Print
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-primary rounded hover:bg-blue-600 transition-colors text-white text-sm font-medium shadow-lg shadow-primary/20">
+          <button className="flex items-center gap-2 px-4 py-2 bg-primary rounded hover:bg-blue-600 transition-colors text-on-primary text-sm font-medium shadow-lg shadow-primary/20">
             <span className="material-symbols-outlined text-[20px]">download</span>
             Download PDF
           </button>
@@ -454,6 +470,13 @@ const Reports: React.FC = () => {
                   </span>
                   <span className={`px-3 py-1.5 rounded text-sm font-medium capitalize border ${getStatusColor(vulnerability.status)}`}>
                     {vulnerability.status.replace('_', ' ')}
+                  </span>
+                  <span className={`px-3 py-1.5 rounded text-sm font-medium border ${
+                    vulnerability.has_ticket
+                      ? 'bg-tone-success/10 text-tone-success border-tone-success/25'
+                      : 'bg-surface text-secondary border-border'
+                  }`}>
+                    Jira: {vulnerability.has_ticket ? 'Ticket Created' : 'Not Created'}
                   </span>
                   {vulnerability.cvss_score && (
                     <span className="px-3 py-1.5 rounded text-sm font-medium bg-background text-white border border-border">
@@ -581,7 +604,7 @@ const Reports: React.FC = () => {
 
           {/* Remediation */}
           {vulnerability.remediation && (
-            <div className="bg-surface border border-emerald-900/30 rounded-lg p-6">
+            <div className="bg-surface border border-tone-success/25 rounded-lg p-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-emerald-400">build</span>
                 Remediation Steps
@@ -590,37 +613,42 @@ const Reports: React.FC = () => {
             </div>
           )}
 
-          {/* ML Analysis Placeholder */}
-          <div className="bg-surface border border-purple-900/30 rounded-lg p-6">
+          {/* Jira Ticket */}
+          <div className="bg-surface border border-tone-low/25 rounded-lg p-6">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-purple-400">psychology</span>
-              ML Risk Analysis
-              <span className="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-purple-900/30 text-purple-400 border border-purple-800">
-                Coming Soon
-              </span>
+              <div className="w-6 h-6 bg-[#0052CC] rounded flex items-center justify-center text-xs font-bold text-on-primary">J</div>
+              Jira Ticket
             </h3>
-            <div className="text-secondary text-sm">
-              Machine learning-powered risk analysis and prioritization will be available soon. This will include:
-              <ul className="list-disc list-inside mt-2 space-y-1 ml-2">
-                <li>Automated risk scoring based on context and exploitability</li>
-                <li>Attack surface analysis</li>
-                <li>Remediation priority recommendations</li>
-                <li>Similar vulnerability patterns across your infrastructure</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Jira Integration Placeholder */}
-          <div className="bg-surface border border-blue-900/30 rounded-lg p-6">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <div className="w-6 h-6 bg-[#0052CC] rounded flex items-center justify-center text-xs font-bold text-white">J</div>
-              Jira Ticket Integration
-              <span className="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-blue-900/30 text-blue-400 border border-blue-800">
-                Coming Soon
-              </span>
-            </h3>
-            <div className="text-secondary text-sm">
-              Automatic Jira ticket creation for critical and high severity vulnerabilities will be available soon.
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className={`px-2.5 py-1 rounded text-xs font-medium uppercase border ${
+                  vulnerability.has_ticket
+                    ? 'bg-tone-success/10 text-tone-success border-tone-success/25'
+                    : 'bg-surface text-secondary border-border'
+                }`}>
+                  {vulnerability.has_ticket ? 'Created' : 'Not Created'}
+                </span>
+                <span className="text-secondary text-sm">
+                  {vulnerability.has_ticket
+                    ? 'Ticket already linked to this vulnerability.'
+                    : 'Create a Jira ticket to track remediation.'}
+                </span>
+              </div>
+              <button
+                onClick={handleCreateTicket}
+                disabled={vulnerability.has_ticket || creatingTicket}
+                className={`flex items-center gap-2 px-4 py-2 rounded text-on-primary text-sm font-medium transition-colors ${
+                  vulnerability.has_ticket
+                  ? 'bg-tone-success/10 text-tone-success border border-tone-success/25 cursor-not-allowed'
+                  : 'bg-primary hover:bg-blue-600'
+                }`}
+                title={vulnerability.has_ticket ? 'Ticket already created' : 'Create Jira ticket'}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {vulnerability.has_ticket ? 'check_circle' : 'confirmation_number'}
+                </span>
+                <span>{vulnerability.has_ticket ? 'Ticket Created' : (creatingTicket ? 'Creating...' : 'Create Ticket')}</span>
+              </button>
             </div>
           </div>
 
@@ -631,3 +659,4 @@ const Reports: React.FC = () => {
 };
 
 export default Reports;
+

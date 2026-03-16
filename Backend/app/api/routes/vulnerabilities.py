@@ -1,14 +1,17 @@
 """API routes for vulnerability management."""
-from datetime import datetime
-from typing import List
+import logging
+from datetime import datetime, timedelta, timezone, date as date_type, time as time_type
+from typing import Any, List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, case, cast, Date, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.schemas import VulnerabilityResponse, VulnerabilityListResponse, DashboardStatsResponse
+logger = logging.getLogger(__name__)
+
+from app.api.schemas import VulnerabilityResponse, VulnerabilityListResponse, DashboardStatsResponse, TrendPointResponse, TrendResponse
 from app.api.routes.auth import get_current_user
 from app.db.models import User, Vulnerability, Asset, JiraTicket
 from app.db.session import get_db
@@ -62,6 +65,113 @@ async def get_dashboard_stats(
         "low": severity_counts['low'],
         "info": severity_counts['info']
     }
+
+
+@router.get("/dashboard/trend", response_model=TrendResponse)
+async def get_vulnerability_trend(
+    days: int = Query(7, ge=7, le=90, description="Number of past days to include (7, 30 or 90)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return per-day vulnerability counts grouped by severity for the given window.
+
+    The response includes one data point for every day in the window even if
+    no vulnerabilities were discovered on that day, so charts always render a
+    continuous series.
+    """
+    today = datetime.now(timezone.utc).date()
+    cutoff_date = today - timedelta(days=days - 1)  # inclusive start
+    cutoff_dt = datetime.combine(cutoff_date, time_type.min, tzinfo=timezone.utc)
+
+    logger.warning(
+        "[TREND] user=%s days=%d today=%s cutoff_date=%s cutoff_dt=%s",
+        current_user.id, days, today, cutoff_date, cutoff_dt,
+    )
+
+    # --- sanity: total rows for this user ---
+    total_user_vulns = await db.scalar(
+        select(func.count()).select_from(Vulnerability).where(
+            Vulnerability.user_id == current_user.id
+        )
+    )
+    logger.warning("[TREND] total vulns for user: %d", total_user_vulns or 0)
+
+    # --- sanity: min/max discovered_at for this user ---
+    min_max = await db.execute(
+        select(
+            func.min(Vulnerability.discovered_at),
+            func.max(Vulnerability.discovered_at),
+        ).where(Vulnerability.user_id == current_user.id)
+    )
+    mm = min_max.first()
+    logger.warning("[TREND] discovered_at range: min=%s  max=%s", mm[0] if mm else None, mm[1] if mm else None)
+
+    # --- sanity: how many rows pass the cutoff filter ---
+    in_window = await db.scalar(
+        select(func.count()).select_from(Vulnerability).where(
+            Vulnerability.user_id == current_user.id,
+            Vulnerability.discovered_at >= cutoff_dt,
+        )
+    )
+    logger.warning("[TREND] rows with discovered_at >= %s : %d", cutoff_dt, in_window or 0)
+
+    # Cast to DATE for GROUP BY / SELECT so we get one row per calendar day.
+    day_col = cast(Vulnerability.discovered_at, Date)
+
+    stmt = (
+        select(
+            day_col.label("day"),
+            func.sum(case((Vulnerability.scanner_severity == "critical", 1), else_=0)).label("critical"),
+            func.sum(case((Vulnerability.scanner_severity == "high",     1), else_=0)).label("high"),
+            func.sum(case((Vulnerability.scanner_severity == "medium",   1), else_=0)).label("medium"),
+            func.sum(case((Vulnerability.scanner_severity == "low",      1), else_=0)).label("low"),
+            func.sum(case((Vulnerability.scanner_severity == "info",     1), else_=0)).label("info"),
+        )
+        .where(
+            Vulnerability.user_id == current_user.id,
+            Vulnerability.discovered_at >= cutoff_dt,
+        )
+        .group_by(day_col)
+        .order_by(day_col)
+    )
+
+    result = await db.execute(stmt)
+    raw_rows = result.all()
+    logger.warning("[TREND] GROUP BY raw rows (%d): %s", len(raw_rows), raw_rows)
+
+    # index by ISO date string to avoid any date/datetime type mismatch
+    rows: dict[str, Any] = {}
+    for row in raw_rows:
+        key = row.day.isoformat() if hasattr(row.day, "isoformat") else str(row.day)
+        logger.warning("[TREND] row key=%r  type=%s  values=c:%s h:%s m:%s l:%s i:%s",
+            key, type(row.day).__name__, row.critical, row.high, row.medium, row.low, row.info)
+        rows[key] = row
+
+    logger.warning("[TREND] rows dict keys: %s", list(rows.keys()))
+
+    points: list[TrendPointResponse] = []
+    for offset in range(days - 1, -1, -1):
+        day = today - timedelta(days=offset)
+        key = day.isoformat()
+        row = rows.get(key)
+        points.append(TrendPointResponse(
+            label=day.strftime("%a") if days <= 7 else day.strftime("%b %d"),
+            date=key,
+            critical=int(row.critical or 0) if row else 0,
+            high=int(row.high or 0) if row else 0,
+            medium=int(row.medium or 0) if row else 0,
+            low=int(row.low or 0) if row else 0,
+            info=int(row.info or 0) if row else 0,
+        ))
+
+    logger.warning("[TREND] returning %d points — non-zero: %s",
+        len(points),
+        [(p.date, p.critical, p.high, p.medium, p.low) for p in points
+         if p.critical or p.high or p.medium or p.low or p.info]
+    )
+
+    return {"points": points}
 
 
 @router.get("", response_model=VulnerabilityListResponse)

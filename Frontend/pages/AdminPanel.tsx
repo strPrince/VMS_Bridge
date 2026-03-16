@@ -171,7 +171,7 @@ const AdminPanel: React.FC = () => {
       case 'ticket_resolved':
         return { icon: 'check_circle', color: 'text-green-500', bg: 'bg-green-500/10' };
       default:
-        return { icon: 'info', color: 'text-secondary', bg: 'bg-[#283039]' };
+        return { icon: 'info', color: 'text-secondary', bg: 'bg-surface-3' };
     }
   };
 
@@ -185,15 +185,15 @@ const AdminPanel: React.FC = () => {
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'open':
-        return 'bg-red-500/10 text-red-500 border-red-500/20';
+        return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
       case 'in_progress':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+        return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
       case 'resolved':
-        return 'bg-green-500/10 text-green-500 border-green-500/20';
+        return 'bg-tone-success/10 text-tone-success border-tone-success/25';
       case 'closed':
-        return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+        return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
       default:
-        return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+        return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
     }
   };
 
@@ -201,15 +201,15 @@ const AdminPanel: React.FC = () => {
   const getPriorityBadgeClass = (priority: string) => {
     switch (priority) {
       case 'low':
-        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+        return 'bg-tone-low/10 text-tone-low border-tone-low/25';
       case 'medium':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+        return 'bg-tone-medium/10 text-tone-medium border-tone-medium/25';
       case 'high':
-        return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
+        return 'bg-tone-high/10 text-tone-high border-tone-high/25';
       case 'urgent':
-        return 'bg-red-500/10 text-red-500 border-red-500/20';
+        return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
       default:
-        return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+        return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
     }
   };
 
@@ -240,7 +240,7 @@ const AdminPanel: React.FC = () => {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-64 bg-[#0f1419] border-r border-border flex flex-col">
+      <div className="w-64 bg-surface border-r border-border flex flex-col">
         <div className="p-6 border-b border-border">
           <h1 className="text-xl font-bold text-white">Admin Panel</h1>
           <p className="text-secondary text-sm mt-1">System Management</p>
@@ -252,8 +252,8 @@ const AdminPanel: React.FC = () => {
               onClick={() => setActiveSection('dashboard')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                 activeSection === 'dashboard'
-                  ? 'bg-[#283039] text-white border border-border'
-                  : 'text-secondary hover:bg-[#283039] hover:text-white'
+                  ? 'bg-surface-3 text-white border border-border'
+                  : 'text-secondary hover:bg-surface-3 hover:text-white'
               }`}
             >
               <span className="material-symbols-outlined text-lg">dashboard</span>
@@ -264,8 +264,8 @@ const AdminPanel: React.FC = () => {
               onClick={() => setActiveSection('tickets')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                 activeSection === 'tickets'
-                  ? 'bg-[#283039] text-white border border-border'
-                  : 'text-secondary hover:bg-[#283039] hover:text-white'
+                  ? 'bg-surface-3 text-white border border-border'
+                  : 'text-secondary hover:bg-surface-3 hover:text-white'
               }`}
             >
               <span className="material-symbols-outlined text-lg">support_agent</span>
@@ -276,8 +276,8 @@ const AdminPanel: React.FC = () => {
               onClick={() => setActiveSection('system')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                 activeSection === 'system'
-                  ? 'bg-[#283039] text-white border border-border'
-                  : 'text-secondary hover:bg-[#283039] hover:text-white'
+                  ? 'bg-surface-3 text-white border border-border'
+                  : 'text-secondary hover:bg-surface-3 hover:text-white'
               }`}
             >
               <span className="material-symbols-outlined text-lg">settings</span>
@@ -287,7 +287,7 @@ const AdminPanel: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 p-3 bg-[#283039] rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-surface-3 rounded-lg">
             <div className="w-8 h-8 bg-purple-500/10 rounded-full flex items-center justify-center">
               <span className="material-symbols-outlined text-purple-500 text-sm">shield_admin</span>
             </div>
@@ -302,7 +302,7 @@ const AdminPanel: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-[#0f1419] border-b border-border px-6 py-4">
+        <header className="bg-surface border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-white text-2xl font-bold">
@@ -330,7 +330,7 @@ const AdminPanel: React.FC = () => {
             <div className="space-y-6">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-[#111418] border border-border rounded-xl p-6">
+                <div className="bg-surface border border-border rounded-xl p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-secondary text-sm font-medium mb-1">Total Users</p>
@@ -343,7 +343,7 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-[#111418] border border-border rounded-xl p-6">
+                <div className="bg-surface border border-border rounded-xl p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-secondary text-sm font-medium mb-1">Active Users</p>
@@ -356,7 +356,7 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-[#111418] border border-border rounded-xl p-6">
+                <div className="bg-surface border border-border rounded-xl p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-secondary text-sm font-medium mb-1">Support Tickets</p>
@@ -369,7 +369,7 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-[#111418] border border-border rounded-xl p-6">
+                <div className="bg-surface border border-border rounded-xl p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-secondary text-sm font-medium mb-1">Open Tickets</p>
@@ -385,7 +385,7 @@ const AdminPanel: React.FC = () => {
 
               {/* Charts Section */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-[#111418] border border-border rounded-xl p-6">
+                <div className="bg-surface border border-border rounded-xl p-6">
                   <h3 className="text-white text-lg font-bold mb-4">Ticket Status Distribution</h3>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -419,7 +419,7 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-[#111418] border border-border rounded-xl p-6">
+                <div className="bg-surface border border-border rounded-xl p-6">
                   <h3 className="text-white text-lg font-bold mb-4">User Activity</h3>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -455,7 +455,7 @@ const AdminPanel: React.FC = () => {
               </div>
 
               {/* Recent Activity */}
-              <div className="bg-[#111418] border border-border rounded-xl p-6">
+              <div className="bg-surface border border-border rounded-xl p-6">
                 <h3 className="text-white text-lg font-bold mb-4">Recent Activity</h3>
                 {activity.length === 0 ? (
                   <p className="text-secondary text-sm">No recent activity yet.</p>
@@ -464,7 +464,7 @@ const AdminPanel: React.FC = () => {
                     {activity.map((item) => {
                       const meta = getActivityMeta(item.type);
                       return (
-                        <div key={item.id} className="flex items-center gap-4 p-3 bg-[#283039] rounded-lg">
+                        <div key={item.id} className="flex items-center gap-4 p-3 bg-surface-3 rounded-lg">
                           <div className={`w-8 h-8 ${meta.bg} rounded-full flex items-center justify-center`}>
                             <span className={`material-symbols-outlined ${meta.color} text-sm`}>{meta.icon}</span>
                           </div>
@@ -487,7 +487,7 @@ const AdminPanel: React.FC = () => {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               {/* Tickets List */}
               <div className="xl:col-span-2 space-y-6">
-                <div className="bg-[#111418] border border-border rounded-xl">
+                <div className="bg-surface border border-border rounded-xl">
                   <div className="p-6 border-b border-border">
                     <h3 className="text-white text-lg font-bold">Support Tickets ({pagination.tickets.total})</h3>
                   </div>
@@ -496,7 +496,7 @@ const AdminPanel: React.FC = () => {
                       <div
                         key={ticket.id}
                         className={`p-6 cursor-pointer transition-colors ${
-                          selectedTicket?.id === ticket.id ? 'bg-[#283039]' : 'hover:bg-[#283039]/50'
+                          selectedTicket?.id === ticket.id ? 'bg-surface-3' : 'hover:bg-surface-3/50'
                         }`}
                         onClick={() => handleTicketSelect(ticket)}
                       >
@@ -522,7 +522,7 @@ const AdminPanel: React.FC = () => {
                             <select
                               value={ticket.status}
                               onChange={(e) => handleUpdateTicketStatus(ticket.id, e.target.value as any)}
-                              className="px-2 py-1 text-xs rounded bg-[#344050] text-white border border-border focus:outline-none"
+                              className="px-2 py-1 text-xs rounded bg-surface-4 text-white border border-border focus:outline-none"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <option value="open">Open</option>
@@ -533,7 +533,7 @@ const AdminPanel: React.FC = () => {
                             <select
                               value={ticket.priority}
                               onChange={(e) => handleUpdateTicketPriority(ticket.id, e.target.value as any)}
-                              className="px-2 py-1 text-xs rounded bg-[#344050] text-white border border-border focus:outline-none"
+                              className="px-2 py-1 text-xs rounded bg-surface-4 text-white border border-border focus:outline-none"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <option value="low">Low</option>
@@ -562,8 +562,8 @@ const AdminPanel: React.FC = () => {
                             onClick={() => handleTicketsPageChange(index + 1)}
                             className={`px-3 py-1 text-sm rounded-lg transition-colors ${
                               pagination.tickets.skip / pagination.tickets.limit === index
-                                ? 'bg-blue-500 text-white'
-                                : 'text-secondary hover:bg-[#283039] hover:text-white'
+                                ? 'bg-blue-500 text-on-primary'
+                                : 'text-secondary hover:bg-surface-3 hover:text-white'
                             }`}
                           >
                             {index + 1}
@@ -578,7 +578,7 @@ const AdminPanel: React.FC = () => {
               {/* Ticket Details */}
               <div className="space-y-6">
                 {selectedTicket ? (
-                  <div className="bg-[#111418] border border-border rounded-xl">
+                  <div className="bg-surface border border-border rounded-xl">
                     <div className="p-6 border-b border-border">
                       <h3 className="text-white text-lg font-bold">Ticket Details</h3>
                     </div>
@@ -591,23 +591,23 @@ const AdminPanel: React.FC = () => {
 
                       {/* Ticket Metadata */}
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-[#283039] rounded-lg p-4">
+                        <div className="bg-surface-3 rounded-lg p-4">
                           <p className="text-secondary text-xs font-medium mb-1">STATUS</p>
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(selectedTicket.status)}`}>
                             {getStatusLabel(selectedTicket.status)}
                           </span>
                         </div>
-                        <div className="bg-[#283039] rounded-lg p-4">
+                        <div className="bg-surface-3 rounded-lg p-4">
                           <p className="text-secondary text-xs font-medium mb-1">PRIORITY</p>
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityBadgeClass(selectedTicket.priority)}`}>
                             {getPriorityLabel(selectedTicket.priority)}
                           </span>
                         </div>
-                        <div className="bg-[#283039] rounded-lg p-4">
+                        <div className="bg-surface-3 rounded-lg p-4">
                           <p className="text-secondary text-xs font-medium mb-1">CATEGORY</p>
                           <p className="text-white text-sm">{selectedTicket.category || 'N/A'}</p>
                         </div>
-                        <div className="bg-[#283039] rounded-lg p-4">
+                        <div className="bg-surface-3 rounded-lg p-4">
                           <p className="text-secondary text-xs font-medium mb-1">CREATED</p>
                           <p className="text-white text-sm">{new Date(selectedTicket.created_at).toLocaleDateString()}</p>
                         </div>
@@ -618,7 +618,7 @@ const AdminPanel: React.FC = () => {
                         <h4 className="text-white font-medium mb-4">Comments & Updates</h4>
                         <div className="space-y-4 max-h-80 overflow-y-auto">
                           {ticketComments.map(comment => (
-                            <div key={comment.id} className="bg-[#283039] rounded-lg p-4">
+                            <div key={comment.id} className="bg-surface-3 rounded-lg p-4">
                               <div className="flex items-start justify-between mb-2">
                                 <span className={`text-xs font-medium px-2 py-1 rounded ${
                                   comment.is_admin ? 'bg-purple-500/10 text-purple-500' : 'bg-blue-500/10 text-blue-500'
@@ -640,12 +640,12 @@ const AdminPanel: React.FC = () => {
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
                             placeholder="Add a comment or update..."
-                            className="w-full p-3 bg-[#283039] border border-border rounded-lg text-white text-sm placeholder-secondary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical min-h-[100px]"
+                            className="w-full p-3 bg-surface-3 border border-border rounded-lg text-white text-sm placeholder-secondary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical min-h-[100px]"
                           />
                           <button
                             onClick={handleCreateComment}
                             disabled={!newComment.trim()}
-                            className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-on-primary text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Add Comment
                           </button>
@@ -654,9 +654,9 @@ const AdminPanel: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-[#111418] border border-border rounded-xl p-8">
+                  <div className="bg-surface border border-border rounded-xl p-8">
                     <div className="text-center">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-[#283039] rounded-full flex items-center justify-center">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-surface-3 rounded-full flex items-center justify-center">
                         <span className="material-symbols-outlined text-secondary text-3xl">support_agent</span>
                       </div>
                       <h3 className="text-white text-lg font-bold mb-2">No Ticket Selected</h3>
@@ -672,17 +672,17 @@ const AdminPanel: React.FC = () => {
           {activeSection === 'system' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-[#111418] border border-border rounded-xl p-6">
+                <div className="bg-surface border border-border rounded-xl p-6">
                   <h3 className="text-white text-lg font-bold mb-4">System Status</h3>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-[#283039] rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-surface-3 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                         <span className="text-white text-sm">API Server</span>
                       </div>
                       <span className="text-green-500 text-xs font-medium">Online</span>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-[#283039] rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-surface-3 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 ${databaseDotColor} rounded-full`}></div>
                         <span className="text-white text-sm">Database</span>
@@ -692,7 +692,7 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-[#111418] border border-border rounded-xl p-6">
+                <div className="bg-surface border border-border rounded-xl p-6">
                   <h3 className="text-white text-lg font-bold mb-4">System Information</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between py-2 border-b border-border">
@@ -729,7 +729,7 @@ const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-[#111418] border border-border rounded-xl p-6">
+              <div className="bg-surface border border-border rounded-xl p-6">
                 <h3 className="text-white text-lg font-bold mb-4">Recent System Events</h3>
                 {systemEvents.length === 0 ? (
                   <p className="text-secondary text-sm">No recent events.</p>
@@ -739,7 +739,7 @@ const AdminPanel: React.FC = () => {
                       const level = item.type === 'ticket_resolved' ? 'SUCCESS' : 'INFO';
                       const levelColor = item.type === 'ticket_resolved' ? 'text-green-500' : 'text-blue-500';
                       return (
-                        <div key={item.id} className="flex gap-4 p-3 bg-[#283039] rounded-lg">
+                        <div key={item.id} className="flex gap-4 p-3 bg-surface-3 rounded-lg">
                           <span className={levelColor}>[{level}]</span>
                           <span className="text-white truncate">{item.title} - {item.detail}</span>
                           <span className="text-secondary ml-auto">
@@ -760,3 +760,6 @@ const AdminPanel: React.FC = () => {
 };
 
 export default AdminPanel;
+
+
+
