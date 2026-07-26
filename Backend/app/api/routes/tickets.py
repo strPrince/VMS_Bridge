@@ -1,5 +1,4 @@
 """API routes for ticket management."""
-import json
 from datetime import datetime
 from typing import List
 from uuid import UUID
@@ -7,6 +6,7 @@ from uuid import UUID
 import requests
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -47,21 +47,19 @@ def create_jira_ticket(
     # Remove trailing slash from URL
     jira_url = jira_url.rstrip('/')
 
-    # API endpoint
-    url = f"{jira_url}/rest/api/3/issue"
+    issue_url = f"{jira_url}/rest/api/3/issue"
+    createmeta_url = f"{jira_url}/rest/api/3/issue/createmeta?projectKeys={project_key}&expand=projects.issuetypes"
 
-    # Request headers
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
 
-    # Request payload
-    payload = {
-        "fields": {
-            "project": {
-                "key": project_key
-            },
+    auth = (email, api_token)
+
+    def build_payload(resolved_issue_type: str, include_priority: bool) -> dict:
+        fields = {
+            "project": {"key": project_key},
             "summary": summary,
             "description": {
                 "type": "doc",
@@ -78,36 +76,75 @@ def create_jira_ticket(
                     }
                 ]
             },
-            "issuetype": {
-                "name": issue_type
-            },
-            "priority": {
-                "name": priority
-            }
+            "issuetype": {"name": resolved_issue_type},
         }
-    }
 
-    # Make request with basic auth
-    auth = (email, api_token)
+        if include_priority and priority:
+            fields["priority"] = {"name": priority}
+
+        return {"fields": fields}
+
+    def extract_error_detail(response: requests.Response | None, error: Exception) -> str:
+        status_code = getattr(response, "status_code", None)
+        response_text = getattr(response, "text", None)
+        if status_code is not None and response_text:
+            return (
+                f"Failed to create Jira ticket via {issue_url} for project '{project_key}' "
+                f"(status {status_code}): {response_text}"
+            )
+        return f"Failed to create Jira ticket via {issue_url} for project '{project_key}': {str(error)}"
+
+    def post_issue(payload: dict) -> requests.Response:
+        response = requests.post(issue_url, headers=headers, json=payload, auth=auth)
+        response.raise_for_status()
+        return response
+
+    candidate_issue_types: list[str] = [issue_type]
 
     try:
-        response = requests.post(url, headers=headers, data=json.dumps(payload), auth=auth)
-        response.raise_for_status()
+        meta_response = requests.get(createmeta_url, headers=headers, auth=auth)
+        if meta_response.ok:
+            meta_data = meta_response.json()
+            projects = meta_data.get("projects") or []
+            if projects:
+                issue_types = projects[0].get("issuetypes") or []
+                available_issue_types = [item.get("name") for item in issue_types if item.get("name")]
+                if issue_type not in available_issue_types and available_issue_types:
+                    candidate_issue_types = [*available_issue_types, issue_type]
+                elif available_issue_types:
+                    candidate_issue_types = [issue_type, *[name for name in available_issue_types if name != issue_type]]
+    except requests.exceptions.RequestException:
+        # If createmeta is unavailable, fall back to the requested issue type.
+        pass
 
-        issue_data = response.json()
-        ticket_key = issue_data['key']
-        ticket_url = f"{jira_url}/browse/{ticket_key}"
+    try:
+        last_error: str | None = None
+        for resolved_issue_type in candidate_issue_types:
+            for include_priority in (True, False):
+                payload = build_payload(resolved_issue_type, include_priority)
+                try:
+                    response = post_issue(payload)
+                    issue_data = response.json()
+                    ticket_key = issue_data["key"]
+                    ticket_url = f"{jira_url}/browse/{ticket_key}"
 
-        return {
-            "ticket_id": ticket_key,
-            "ticket_url": ticket_url,
-            "created_at": datetime.now()
-        }
+                    return {
+                        "ticket_id": ticket_key,
+                        "ticket_url": ticket_url,
+                        "created_at": datetime.now()
+                    }
+                except requests.exceptions.RequestException as e:
+                    last_error = extract_error_detail(getattr(e, "response", None), e)
+
+        raise HTTPException(
+            status_code=500,
+            detail=last_error or f"Failed to create Jira ticket via {issue_url} for project '{project_key}'."
+        )
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create Jira ticket: {str(e)}"
+            detail=extract_error_detail(getattr(e, "response", None), e)
         )
 
 
@@ -177,6 +214,7 @@ async def create_ticket(
     created_tickets = []
     
     for vuln in vulnerabilities:
+        vuln_id_str = str(vuln.id)
         # Prepare ticket content for this vulnerability
         title = request.title or f"Vulnerability: {vuln.title}"
         description = request.description or f"""
@@ -197,17 +235,30 @@ Remediation:
         """.strip()
 
         try:
-            # Create Jira ticket
-            ticket_data = create_jira_ticket(
-                jira_url=current_user.jira_base_url,
-                email=current_user.email,
-                api_token=current_user.jira_api_token,
-                project_key=current_user.jira_project_keys[0],  # Use first project key
-                summary=title,
-                description=description,
-                priority=request.priority,
-                issue_type=request.issue_type
-            )
+            # Try configured Jira project keys in order until one succeeds.
+            ticket_data = None
+            last_error: str | None = None
+            for project_key in dict.fromkeys(current_user.jira_project_keys):
+                try:
+                    ticket_data = create_jira_ticket(
+                        jira_url=current_user.jira_base_url,
+                        email=current_user.email,
+                        api_token=current_user.jira_api_token,
+                        project_key=project_key,
+                        summary=title,
+                        description=description,
+                        priority=request.priority,
+                        issue_type=request.issue_type
+                    )
+                    break
+                except HTTPException as jira_error:
+                    last_error = jira_error.detail if isinstance(jira_error.detail, str) else str(jira_error.detail)
+
+            if ticket_data is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail=last_error or "Failed to create Jira ticket with any configured project key."
+                )
 
             # Save ticket to database
             jira_ticket = JiraTicket(
@@ -218,8 +269,34 @@ Remediation:
                 jira_status="Open"
             )
             db.add(jira_ticket)
-            await db.commit()
-            await db.refresh(jira_ticket)
+            try:
+                await db.commit()
+                await db.refresh(jira_ticket)
+            except IntegrityError:
+                await db.rollback()
+
+                existing_ticket = await db.scalar(
+                    select(JiraTicket).where(JiraTicket.vulnerability_id == vuln.id)
+                )
+                if existing_ticket is None:
+                    existing_ticket = await db.scalar(
+                        select(JiraTicket).where(JiraTicket.jira_ticket_key == ticket_data["ticket_id"])
+                    )
+
+                if existing_ticket is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            f"Jira ticket {ticket_data['ticket_id']} already exists in the database "
+                            f"and could not be linked to vulnerability {vuln_id_str}."
+                        )
+                    )
+
+                ticket_data = {
+                    "ticket_id": existing_ticket.jira_ticket_key,
+                    "ticket_url": existing_ticket.jira_url or ticket_data["ticket_url"],
+                    "created_at": existing_ticket.created_at,
+                }
 
             created_tickets.append(TicketResponse(
                 ticket_id=ticket_data["ticket_id"],
@@ -228,9 +305,9 @@ Remediation:
                 created_at=ticket_data["created_at"]
             ))
 
+        except HTTPException:
+            raise
         except Exception as e:
-            # Store vuln_id before rollback to avoid lazy loading issues
-            vuln_id_str = str(vuln.id)
             # Log error but continue with other vulnerabilities
             await db.rollback()
             import traceback

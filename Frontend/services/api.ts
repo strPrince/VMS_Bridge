@@ -147,9 +147,16 @@ export interface Vulnerability {
   cvss_vector: string | null;
   port: number | null;
   protocol: string | null;
-  status: 'open' | 'in_progress' | 'resolved' | 'false_positive';
+  status: VulnerabilityStatus;
   discovered_at: string;
   has_ticket: boolean;
+}
+
+export interface JiraTicketResponse {
+  ticket_id: string;
+  ticket_url: string;
+  vulnerability_ids: string[];
+  created_at: string;
 }
 
 export interface VulnerabilityListResponse {
@@ -157,6 +164,12 @@ export interface VulnerabilityListResponse {
   total: number;
   skip: number;
   limit: number;
+}
+
+export type VulnerabilityStatus = 'open' | 'ignored' | 'fixed' | 'false_positive';
+
+export interface UpdateVulnerabilityStatusRequest {
+  status: VulnerabilityStatus;
 }
 
 export interface DashboardStats {
@@ -553,6 +566,22 @@ class ApiClient {
     return this.request<Vulnerability>(`/vulnerabilities/${vulnerabilityId}`);
   }
 
+  async updateVulnerabilityStatus(
+    vulnerabilityId: string,
+    status: UpdateVulnerabilityStatusRequest
+  ): Promise<Vulnerability> {
+    return this.request<Vulnerability>(`/vulnerabilities/${vulnerabilityId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(status),
+    });
+  }
+
+  async generateRemediation(vulnerabilityId: string): Promise<Vulnerability> {
+    return this.request<Vulnerability>(`/vulnerabilities/${vulnerabilityId}/remediation/generate`, {
+      method: 'POST',
+    });
+  }
+
   async getDashboardStats(): Promise<DashboardStats> {
     return this.request<DashboardStats>('/vulnerabilities/dashboard/stats');
   }
@@ -576,8 +605,8 @@ class ApiClient {
     description?: string;
     priority?: string;
     issue_type?: string;
-  }): Promise<any> {
-    return this.request('/tickets/', {
+  }): Promise<JiraTicketResponse[]> {
+    return this.request<JiraTicketResponse[]>('/tickets/', {
       method: 'POST',
       body: JSON.stringify(data),
     });

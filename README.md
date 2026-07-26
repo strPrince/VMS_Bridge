@@ -171,6 +171,8 @@ REDIS_URL=redis://localhost:6379/0
 SECRET_KEY=your-secret-key-min-32-chars
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODELS=gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-flash-8b
 ```
 
 See `.env.example` for all options.

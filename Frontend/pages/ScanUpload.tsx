@@ -134,11 +134,31 @@ const ScanUpload: React.FC = () => {
       await loadScans(false);
 
       // Poll for completion then fetch vuln counts for summary card
+      const fetchAllVulnerabilitiesForScan = async (scanId: string) => {
+        const pageSize = 100;
+        let skip = 0;
+        let total = 0;
+        const items: any[] = [];
+
+        do {
+          const response = await apiClient.listVulnerabilities({ scan_id: scanId, limit: pageSize, skip });
+          total = response.total;
+          items.push(...response.items);
+          skip += response.items.length;
+
+          if (response.items.length === 0) {
+            break;
+          }
+        } while (items.length < total);
+
+        return { total, items };
+      };
+
       const pollForSummary = async (attempts = 0) => {
         if (attempts > 30) return; // give up after ~60s
         try {
           const resp = await apiClient.listVulnerabilities({ scan_id: scan.id, limit: 1 });
-          const allVulns = await apiClient.listVulnerabilities({ scan_id: scan.id, limit: 1000 });
+          const allVulns = await fetchAllVulnerabilitiesForScan(scan.id);
           if (allVulns.total > 0) {
             const counts = { critical: 0, high: 0, medium: 0, low: 0 };
             allVulns.items.forEach((v: any) => {

@@ -106,8 +106,8 @@ const Dashboard: React.FC = () => {
   const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'open': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
-      case 'in_progress': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
-      case 'resolved': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
+      case 'ignored': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
+      case 'fixed': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
       case 'false_positive': return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
       default: return 'bg-surface text-secondary border-border';
     }
@@ -532,7 +532,7 @@ const Dashboard: React.FC = () => {
                                   </td>
                                   <td className="px-6 py-4">
                                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium uppercase border ${getStatusColor(vuln.status)}`}>
-                                        {vuln.status.replace('_', ' ')}
+                                        {vuln.status.replace(/_/g, ' ')}
                                      </span>
                                   </td>
                                </tr>
@@ -585,5 +585,3 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
-
-

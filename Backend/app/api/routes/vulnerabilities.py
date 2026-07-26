@@ -11,12 +11,26 @@ from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger(__name__)
 
-from app.api.schemas import VulnerabilityResponse, VulnerabilityListResponse, DashboardStatsResponse, TrendPointResponse, TrendResponse
+from app.api.schemas import (
+    VulnerabilityResponse,
+    VulnerabilityListResponse,
+    DashboardStatsResponse,
+    TrendPointResponse,
+    TrendResponse,
+    UpdateVulnerabilityStatusRequest,
+)
 from app.api.routes.auth import get_current_user
+from app.core.remediation_ai import generate_remediation_steps
 from app.db.models import User, Vulnerability, Asset, JiraTicket
 from app.db.session import get_db
 
 router = APIRouter(prefix="/vulnerabilities", tags=["vulnerabilities"])
+
+
+def build_vulnerability_response(vuln: Vulnerability, has_ticket: bool = False) -> VulnerabilityResponse:
+    vuln_dict = vuln.__dict__.copy()
+    vuln_dict["has_ticket"] = has_ticket
+    return VulnerabilityResponse(**vuln_dict)
 
 
 @router.get("/dashboard/stats", response_model=DashboardStatsResponse)
@@ -179,7 +193,7 @@ async def list_vulnerabilities(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     severity: str | None = Query(None, description="Filter by severity (critical, high, medium, low, info)"),
-    status: str | None = Query(None, description="Filter by status (open, in_progress, resolved, false_positive)"),
+    status: str | None = Query(None, description="Filter by status (open, ignored, fixed, false_positive)"),
     asset_id: UUID | None = Query(None, description="Filter by asset ID"),
     scan_id: UUID | None = Query(None, description="Filter by scan ID"),
     search: str | None = Query(None, description="Search in title, description, CVE ID"),
@@ -306,7 +320,98 @@ async def get_vulnerability(
     
     vuln = row[0]
     ticket = row[1]
+    return build_vulnerability_response(vuln, ticket is not None)
+
+
+@router.post("/{vulnerability_id}/remediation/generate", response_model=VulnerabilityResponse)
+async def generate_vulnerability_remediation(
+    vulnerability_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate and persist AI remediation steps for a vulnerability."""
+    query = (
+        select(Vulnerability, JiraTicket)
+        .where(
+            Vulnerability.id == vulnerability_id,
+            Vulnerability.user_id == current_user.id,
+        )
+        .outerjoin(JiraTicket, Vulnerability.id == JiraTicket.vulnerability_id)
+        .options(joinedload(Vulnerability.asset))
+    )
+
+    result = await db.execute(query)
+    row = result.unique().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+
+    vuln = row[0]
+    ticket = row[1]
+
+    try:
+        ai_result = await generate_remediation_steps(vuln)
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+    vuln.remediation = ai_result.text
+    await db.commit()
+    await db.refresh(vuln)
+
+    logger.warning(
+        "Generated remediation for vulnerability %s using model %s",
+        vulnerability_id,
+        ai_result.model,
+    )
+
+    return build_vulnerability_response(vuln, ticket is not None)
+
+
+@router.patch("/{vulnerability_id}/status", response_model=VulnerabilityResponse)
+async def update_vulnerability_status(
+    vulnerability_id: UUID,
+    request: UpdateVulnerabilityStatusRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a vulnerability's lifecycle status."""
+    vuln = await db.scalar(
+        select(Vulnerability).where(
+            Vulnerability.id == vulnerability_id,
+            Vulnerability.user_id == current_user.id,
+        )
+    )
+
+    if not vuln:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+
+    vuln.status = request.status
+    if request.status == "open":
+        vuln.closed_at = None
+    else:
+        if not vuln.closed_at:
+            vuln.closed_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    # Return hydrated response (asset + has_ticket)
+    query = (
+        select(Vulnerability, JiraTicket)
+        .where(
+            Vulnerability.id == vulnerability_id,
+            Vulnerability.user_id == current_user.id,
+        )
+        .outerjoin(JiraTicket, Vulnerability.id == JiraTicket.vulnerability_id)
+        .options(joinedload(Vulnerability.asset))
+    )
+    result = await db.execute(query)
+    row = result.unique().first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+
+    vuln = row[0]
+    ticket = row[1]
     vuln_dict = vuln.__dict__.copy()
-    vuln_dict['has_ticket'] = ticket is not None
-    
+    vuln_dict["has_ticket"] = ticket is not None
+
     return VulnerabilityResponse(**vuln_dict)

@@ -16,6 +16,7 @@ python-multipart==0.0.6
 
 # HTTP requests for reCAPTCHA
 requests==2.31.0
+httpx==0.25.2
 
 # Testing
 httpx==0.25.2

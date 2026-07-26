@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { apiClient, Vulnerability, VulnerabilityListResponse } from '../services/api';
+import { apiClient, Vulnerability, VulnerabilityListResponse, VulnerabilityStatus } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { TableSkeleton } from '../components/SkeletonLoader';
@@ -42,6 +42,7 @@ const Vulnerabilities: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   
   // Filters
   const scanIdFromUrl = searchParams.get('scan_id');
@@ -53,7 +54,7 @@ const Vulnerabilities: React.FC = () => {
 
   const selectedVuln = vulnerabilities.find(v => v.id === selectedId);
 
-  const loadVulnerabilities = async () => {
+  const loadVulnerabilities = async (preferSelectedId?: string | null) => {
     try {
       setLoading(true);
       const response: VulnerabilityListResponse = await apiClient.listVulnerabilities({
@@ -68,8 +69,13 @@ const Vulnerabilities: React.FC = () => {
       setVulnerabilities(response.items);
       setTotal(response.total);
       
-      // Auto-select first item if none selected
-      if (response.items.length > 0 && !selectedId) {
+      // Keep selection stable (or fall back to first item)
+      const preferredId = preferSelectedId ?? selectedId;
+      if (response.items.length === 0) {
+        setSelectedId(null);
+      } else if (preferredId && response.items.some(v => v.id === preferredId)) {
+        setSelectedId(preferredId);
+      } else {
         setSelectedId(response.items[0].id);
       }
     } catch (error: any) {
@@ -97,10 +103,27 @@ const Vulnerabilities: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
-      case 'in_progress': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
-      case 'resolved': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
+      case 'ignored': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
+      case 'fixed': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
       case 'false_positive': return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
       default: return 'bg-surface text-secondary border-border';
+    }
+  };
+
+  const handleUpdateVulnerabilityStatus = async (nextStatus: VulnerabilityStatus) => {
+    if (!selectedVuln) return;
+    if (selectedVuln.status === nextStatus) return;
+
+    try {
+      setUpdatingStatus(true);
+      await apiClient.updateVulnerabilityStatus(selectedVuln.id, { status: nextStatus });
+      showToast('Vulnerability status updated', 'success');
+      await loadVulnerabilities(selectedVuln.id);
+    } catch (error: any) {
+      showToast(error.message || 'Failed to update vulnerability status', 'error');
+      await loadVulnerabilities(selectedVuln.id);
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -226,8 +249,8 @@ const Vulnerabilities: React.FC = () => {
               >
                 <option value="">All Status</option>
                 <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="resolved">Resolved</option>
+                <option value="fixed">Fixed</option>
+                <option value="ignored">Ignored</option>
                 <option value="false_positive">False Positive</option>
               </select>
             </div>
@@ -370,7 +393,7 @@ const Vulnerabilities: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded text-xs font-medium capitalize border ${getStatusColor(vuln.status)}`}>
-                          {vuln.status.replace('_', ' ')}
+                          {vuln.status.replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -421,9 +444,18 @@ const Vulnerabilities: React.FC = () => {
                     <span className={`px-2 py-1 rounded text-xs font-medium uppercase border ${getSeverityColor(selectedVuln.scanner_severity)}`}>
                       {selectedVuln.scanner_severity}
                     </span>
-                    <span className={`px-2 py-1 rounded text-xs font-medium capitalize border ${getStatusColor(selectedVuln.status)}`}>
-                      {selectedVuln.status.replace('_', ' ')}
-                    </span>
+                    <select
+                      value={selectedVuln.status}
+                      onChange={(e) => handleUpdateVulnerabilityStatus(e.target.value as VulnerabilityStatus)}
+                      disabled={updatingStatus}
+                      className={`px-2 py-1 rounded text-xs font-medium capitalize border ${getStatusColor(selectedVuln.status)} bg-background/40 focus:outline-none focus:border-primary disabled:opacity-60`}
+                      title="Change vulnerability status"
+                    >
+                      <option value="open">Open</option>
+                      <option value="fixed">Fixed</option>
+                      <option value="ignored">Ignored</option>
+                      <option value="false_positive">False Positive</option>
+                    </select>
                     {selectedVuln.cvss_score && (
                       <span className="px-2 py-1 rounded text-xs font-medium bg-surface text-white border border-border">
                         CVSS: {selectedVuln.cvss_score.toFixed(1)}

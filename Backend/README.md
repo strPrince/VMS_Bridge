@@ -76,6 +76,7 @@ FastAPI backend server for VMC Bridge vulnerability management platform.
 - `GET /vulnerabilities` - List vulnerabilities (with filters)
 - `GET /vulnerabilities/{vuln_id}` - Get vulnerability details
 - `PATCH /vulnerabilities/{vuln_id}` - Update vulnerability status
+- `POST /vulnerabilities/{vuln_id}/remediation/generate` - Generate and save AI remediation steps
 
 ### Jobs
 - `GET /jobs` - List background jobs
@@ -145,6 +146,10 @@ SECRET_KEY=change-this-to-a-secure-random-32-char-string
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# AI remediation generation
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODELS=gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-flash-8b
 ```
 
 ### Generate Secure Secret Key

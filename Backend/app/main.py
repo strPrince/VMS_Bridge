@@ -16,21 +16,7 @@ logging.basicConfig(
 
 settings = get_settings()
 
-app = FastAPI(title=settings.app_name, version=settings.version)
-
-# CORS middleware for frontend communication
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite
-        "http://localhost:3000",  # React/Node dev server
-        "http://localhost:3001",  # Additional React/Node dev server
-        "http://localhost:4173",  # Vite preview
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+fastapi_app = FastAPI(title=settings.app_name, version=settings.version)
 
 # Include API routers
 from app.api.routes.health import router as health_router
@@ -42,17 +28,17 @@ from app.api.routes.tickets import router as tickets_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.support_tickets import router as support_tickets_router
 
-app.include_router(health_router)
-app.include_router(auth_router)
-app.include_router(scans_router)
-app.include_router(jobs_router)
-app.include_router(vulnerabilities_router)
-app.include_router(tickets_router)
-app.include_router(admin_router)
-app.include_router(support_tickets_router)
+fastapi_app.include_router(health_router)
+fastapi_app.include_router(auth_router)
+fastapi_app.include_router(scans_router)
+fastapi_app.include_router(jobs_router)
+fastapi_app.include_router(vulnerabilities_router)
+fastapi_app.include_router(tickets_router)
+fastapi_app.include_router(admin_router)
+fastapi_app.include_router(support_tickets_router)
 
 
-@app.get("/health")
+@fastapi_app.get("/health")
 async def health():
     return JSONResponse(status_code=200, content={"status": "ok"})
 
@@ -61,4 +47,17 @@ async def health():
 
 
 # Optionally, include more routers here in the future
+
+app = CORSMiddleware(
+    fastapi_app,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:4173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 

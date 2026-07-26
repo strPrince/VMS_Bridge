@@ -45,6 +45,7 @@ const Reports: React.FC = () => {
   const [scanReport, setScanReport] = useState<ScanReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [creatingTicket, setCreatingTicket] = useState(false);
+  const [generatingRemediation, setGeneratingRemediation] = useState(false);
 
   useEffect(() => {
     if (scanId) {
@@ -89,13 +90,35 @@ const Reports: React.FC = () => {
 
     try {
       setCreatingTicket(true);
-      await apiClient.createTicket({ vulnerability_ids: [vulnerability.id] });
+      const tickets = await apiClient.createTicket({ vulnerability_ids: [vulnerability.id] });
       showToast('Jira ticket created successfully', 'success');
       setVulnerability({ ...vulnerability, has_ticket: true });
+      const ticketUrl = tickets[0]?.ticket_url;
+      if (ticketUrl) {
+        const openedWindow = window.open(ticketUrl, '_blank', 'noopener,noreferrer');
+        if (!openedWindow) {
+          window.location.assign(ticketUrl);
+        }
+      }
     } catch (error: any) {
       showToast(error.message || 'Failed to create Jira ticket', 'error');
     } finally {
       setCreatingTicket(false);
+    }
+  };
+
+  const handleGenerateRemediation = async () => {
+    if (!vulnerability || generatingRemediation) return;
+
+    try {
+      setGeneratingRemediation(true);
+      const updatedVulnerability = await apiClient.generateRemediation(vulnerability.id);
+      setVulnerability(updatedVulnerability);
+      showToast('AI remediation generated and saved', 'success');
+    } catch (error: any) {
+      showToast(error.message || 'Failed to generate remediation', 'error');
+    } finally {
+      setGeneratingRemediation(false);
     }
   };
 
@@ -113,8 +136,8 @@ const Reports: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-tone-critical/10 text-tone-critical border-tone-critical/25';
-      case 'in_progress': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
-      case 'resolved': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
+      case 'ignored': return 'bg-tone-warning/10 text-tone-warning border-tone-warning/25';
+      case 'fixed': return 'bg-tone-success/10 text-tone-success border-tone-success/25';
       case 'false_positive': return 'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25';
       default: return 'bg-surface text-secondary border-border';
     }
@@ -353,13 +376,8 @@ const Reports: React.FC = () => {
                           <p className="text-white text-sm">{vuln.asset_identifier}</p>
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded text-xs font-medium capitalize border ${
-                            vuln.status === 'open' ? 'bg-tone-critical/10 text-tone-critical border-tone-critical/25' :
-                            vuln.status === 'in_progress' ? 'bg-tone-warning/10 text-tone-warning border-tone-warning/25' :
-                            vuln.status === 'resolved' ? 'bg-tone-success/10 text-tone-success border-tone-success/25' :
-                            'bg-tone-neutral/10 text-tone-neutral border-tone-neutral/25'
-                          }`}>
-                            {vuln.status.replace('_', ' ')}
+                          <span className={`px-2 py-1 rounded text-xs font-medium capitalize border ${getStatusColor(vuln.status)}`}>
+                            {vuln.status.replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td className="py-3 px-4">
@@ -469,7 +487,7 @@ const Reports: React.FC = () => {
                     {vulnerability.scanner_severity} Severity
                   </span>
                   <span className={`px-3 py-1.5 rounded text-sm font-medium capitalize border ${getStatusColor(vulnerability.status)}`}>
-                    {vulnerability.status.replace('_', ' ')}
+                    {vulnerability.status.replace(/_/g, ' ')}
                   </span>
                   <span className={`px-3 py-1.5 rounded text-sm font-medium border ${
                     vulnerability.has_ticket
@@ -603,15 +621,31 @@ const Reports: React.FC = () => {
           )}
 
           {/* Remediation */}
-          {vulnerability.remediation && (
-            <div className="bg-surface border border-tone-success/25 rounded-lg p-6">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-surface border border-tone-success/25 rounded-lg p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-emerald-400">build</span>
                 Remediation Steps
               </h3>
-              <div className="text-secondary leading-relaxed whitespace-pre-wrap">{vulnerability.remediation.trim()}</div>
+              <button
+                onClick={handleGenerateRemediation}
+                disabled={generatingRemediation}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-on-primary text-sm font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {generatingRemediation ? 'hourglass_top' : 'auto_awesome'}
+                </span>
+                {generatingRemediation ? 'Generating...' : (vulnerability.remediation ? 'Regenerate with AI' : 'Generate with AI')}
+              </button>
             </div>
-          )}
+            {vulnerability.remediation ? (
+              <div className="text-secondary leading-relaxed whitespace-pre-wrap">{vulnerability.remediation.trim()}</div>
+            ) : (
+              <div className="text-secondary leading-relaxed">
+                No remediation steps have been saved yet. Generate AI remediation to populate this section and reuse it in Jira.
+              </div>
+            )}
+          </div>
 
           {/* Jira Ticket */}
           <div className="bg-surface border border-tone-low/25 rounded-lg p-6">

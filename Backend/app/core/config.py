@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     
     # reCAPTCHA Settings
     recaptcha_secret_key: str = "your-recaptcha-secret-key"
+
+    # AI remediation generation settings
+    gemini_api_key: str | None = None
+    gemini_models: str = "gemini-2.5-flash,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-flash,gemini-1.5-flash-8b,gemini-2.5-flash-lite"
+    ai_request_timeout_seconds: int = 45
     
     class Config:
         env_file = ".env"

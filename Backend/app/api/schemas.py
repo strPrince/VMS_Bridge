@@ -140,6 +140,11 @@ class VulnerabilityListResponse(BaseModel):
     limit: int
 
 
+class UpdateVulnerabilityStatusRequest(BaseModel):
+    """Update vulnerability status request."""
+    status: str = Field(..., pattern="^(open|ignored|fixed|false_positive)$")
+
+
 class DashboardStatsResponse(BaseModel):
     """Dashboard statistics response."""
     total_vulnerabilities: int
